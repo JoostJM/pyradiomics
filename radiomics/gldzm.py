@@ -1,6 +1,7 @@
 import numpy
 from tqdm import trange
 import SimpleITK as sitk
+import radiomics
 from radiomics import base, imageoperations
 
 
@@ -82,7 +83,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     super(RadiomicsGLDZM, self).__init__(inputImage, inputMask, **kwargs)
 
     self.coefficients = {}
-    self.P_gldzm = {}
+    self.P_gldzm = None
 
     # Pad inputMask to prevent errors in the distancemap (voxels on the border are not considered to be on the edge of
     # the ROI. Do not pad in 2D directions, as this would result in a distance map where all distances are 0 (i.e.
@@ -109,8 +110,20 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
     self.coefficients['Np'] = self.targetVoxelArray.size
 
-    self._calculateMatrix()
+    if radiomics.cMatsEnabled:
+      self.P_gldzm = self._calculateMatrix()
+    else:
+      self.P_gldzm = self._calculateCMatrix()
     self._calculateCoefficients()
+
+  def _calculateDistanceMap(self):
+    smdmif = sitk.SignedMaurerDistanceMapImageFilter()
+    smdmif.SquaredDistanceOff()
+    smdmif.InsideIsPositiveOn()
+    distImage = smdmif.Execute(self.inputMask)
+    distMap = sitk.GetArrayFromImage(distImage)
+    distMap, distHist = imageoperations.binImage(1, distMap, self.matrixCoordinates)
+    return distMap
 
   def _calculateMatrix(self):
     """
@@ -120,11 +133,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     angles = imageoperations.generateAngles(size)
 
-    smdmif = sitk.SignedMaurerDistanceMapImageFilter()
-    smdmif.SquaredDistanceOff()
-    smdmif.InsideIsPositiveOn()
-    distImage = smdmif.Execute(self.inputMask)
-    distMap = numpy.round(sitk.GetArrayFromImage(distImage), 0)  # Round distances to make them usable as indices
+    distMap = self._calculateDistanceMap()
 
     # Empty GLDZ matrix
     P_gldzm = numpy.zeros((self.coefficients['Ng'], int(numpy.max(distMap) + 1)))
@@ -180,7 +189,24 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
     P_gldzm_bounds = numpy.argwhere(P_gldzm)
     (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
-    self.P_gldzm = P_gldzm[xstart:xstop, :ystop]
+    return P_gldzm[xstart:xstop, :ystop]
+
+  def _calculateCMatrix(self):
+    Ng = self.coefficients['Ng']
+
+    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    angles = imageoperations.generateAngles(size)
+
+    distMap = self._calculateDistanceMap()
+    Nd = int(numpy.max(distMap))
+
+    P_gldzm = radiomics.cMatrices.calculate_gldzm(self.matrix, self.maskArray, distMap, angles, Ng, Nd)
+
+    # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
+    # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
+    P_gldzm_bounds = numpy.argwhere(P_gldzm)
+    (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
+    return P_gldzm[xstart:xstop, :ystop]
 
   def _calculateCoefficients(self):
     sumP_gldzm = numpy.sum(self.P_gldzm, (0, 1))
