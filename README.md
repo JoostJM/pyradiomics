@@ -20,6 +20,7 @@ Currently supports the following feature classes:
  - [Gray Level Cooccurence Matrix](https://en.wikipedia.org/wiki/Co-occurrence_matrix) (GLCM)
  - [Gray Level Run Length Matrix](http://www.insight-journal.org/browse/publication/231) (GLRLM)
  - [Gray Level Size Zone Matrix](https://en.wikipedia.org/wiki/Gray_level_size_zone_matrix) (GLSZM)
+ - Gray Level Dependence Matrix (GLDM)
 
 ### Filter Classes
 Aside from the feature classes, there are also some built-in optional filters:
