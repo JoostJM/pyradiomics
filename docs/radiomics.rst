@@ -92,6 +92,17 @@ radiomics.shape module
     :show-inheritance:
     :member-order: bysource
 
+.. _radiomics-ngtdm-label:
+
+radiomics.ngtdm module
+----------------------
+
+.. automodule:: radiomics.ngtdm
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :member-order: bysource
+
 .. _radiomics-imageoperations-label:
 
 radiomics.imageoperations module
