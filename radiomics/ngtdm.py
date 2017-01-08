@@ -1,5 +1,6 @@
 import numpy
 from tqdm import trange
+import radiomics
 from radiomics import base, imageoperations
 
 
@@ -87,7 +88,10 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
     self.coefficients['Np'] = self.targetVoxelArray.size
 
-    self.P_ngtdm = self._calculateMatrix()
+    if radiomics.cMatsEnabled:
+      self.P_ngtdm = self._calculateCMatrix()
+    else:
+      self.P_ngtdm = self._calculateMatrix()
     self._calculateCoefficients()
 
   def _calculateMatrix(self):
@@ -158,6 +162,21 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
 
     # Fill in gray levels (needed as empty gray level slices will be deleted)
     P_ngtdm[:, 2] = numpy.arange(1, Ng + 1)
+
+    # Delete empty grey levels
+    P_ngtdm = numpy.delete(P_ngtdm, numpy.where(P_ngtdm[:, 0] == 0), 0)
+
+    # Normalize P_ngtdm[:, 0] (= p_i)
+    P_ngtdm[:, 0] = P_ngtdm[:, 0] / self.coefficients['Np']
+
+    return P_ngtdm
+
+  def _calculateCMatrix(self):
+    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    angles = imageoperations.generateAngles(size)
+    Ng = self.coefficients['Ng']
+
+    P_ngtdm = radiomics.cMatrices.calculate_ngtdm(self.matrix, self.maskArray, angles, Ng)
 
     # Delete empty grey levels
     P_ngtdm = numpy.delete(P_ngtdm, numpy.where(P_ngtdm[:, 0] == 0), 0)
