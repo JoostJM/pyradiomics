@@ -8,17 +8,17 @@ import numpy
 import SimpleITK as sitk
 
 from nose_parameterized import parameterized
-from radiomics import glcm, glrlm, glszm, ngtdm, gldm
+from radiomics import glcm, glrlm, glszm, ngtdm, gldm, gldzm
 
 from .testUtils import RadiomicsTestUtils, custom_name_func
 
 
 testUtils = RadiomicsTestUtils()
 defaultTestCases = testUtils.getTestCases()
-defaultFeatures = ["glcm", "glrlm", "shape", "glszm", "ngtdm", "gldm"]
+defaultFeatures = ["glcm", "glrlm", "shape", "glszm", "ngtdm", "gldm", "gldzm"]
 
 testCases = defaultTestCases
-features = ["glcm", "glrlm", "glszm", "ngtdm", "gldm"]  # defaultFeatures
+features = ["glcm", "glrlm", "glszm", "ngtdm", "gldm", "gldzm"]  # defaultFeatures
 
 
 class TestFeatures:
@@ -81,6 +81,11 @@ class TestFeatures:
       logging.debug('Init GLDM')
       featureClass = gldm.RadiomicsGLDM(testImage, testMask, **testUtils.getKwargs())
       cMat = featureClass.P_gldm
+      pyMat = featureClass._calculateMatrix()
+    elif featureClassName == 'gldzm':
+      logging.debug('Init GLDZM')
+      featureClass = gldzm.RadiomicsGLDZM(testImage, testMask, **testUtils.getKwargs())
+      cMat = featureClass.P_gldzm
       pyMat = featureClass._calculateMatrix()
 
     assert (featureClass is not None)

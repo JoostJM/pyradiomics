@@ -25,6 +25,7 @@ Currently supports the following feature classes:
 * `Gray Level Size Zone Matrix <https://en.wikipedia.org/wiki/Gray_level_size_zone_matrix>`_ (GLSZM)
 * Neighbouring Gray Tone Difference Matrix (NGTDM)
 * Gray Level Dependence Matrix (GLDM)
+* `Gray Level Distance Zone Matrix <http://thibault.biz/Research/ThibaultMatrices/GLDZM/GLDZM.html>`_ (GLDZM)
 
 Filter Classes
 --------------
