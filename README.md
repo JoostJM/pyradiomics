@@ -21,6 +21,7 @@ Currently supports the following feature classes:
  - [Gray Level Run Length Matrix](http://www.insight-journal.org/browse/publication/231) (GLRLM)
  - [Gray Level Size Zone Matrix](https://en.wikipedia.org/wiki/Gray_level_size_zone_matrix) (GLSZM)
  - Neighbouring Gray Tone Difference Matrix (NGTDM)
+ - Gray Level Dependence Matrix (GLDM)
 
 ### Filter Classes
 Aside from the feature classes, there are also some built-in optional filters:
