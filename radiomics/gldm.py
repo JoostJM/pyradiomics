@@ -1,5 +1,6 @@
 import numpy
 from tqdm import trange
+import radiomics
 from radiomics import base, imageoperations
 
 
@@ -63,7 +64,11 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     self.matrix, self.histogram = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
     self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
 
-    self.P_gldm = self._calculateMatrix()
+    if radiomics.cMatsEnabled:
+      self.P_gldm = self._calculateMatrix()
+    else:
+      self.P_gldm = self._calculateCMatrix()
+
     self._calculateCoefficients()
 
   def _calculateMatrix(self):
@@ -126,6 +131,19 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     self.coefficients['sumP_gldm'] = sumP_gldm
 
     return P_gldm
+
+  def _calculateCMatrix(self):
+    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    angles = imageoperations.generateAngles(size)
+    Ng = self.coefficients['Ng']
+
+    P_gldm = radiomics.cMatrices.calculate_gldm(self.matrix, self.maskArray, angles, Ng, self.gldm_a)
+
+    # Crop gray-level axis of GLDM matrix to between minimum and maximum observed gray-levels
+    # Crop dependence axis of GLDM matrix up to maximum observed dependence
+    P_gldm_bounds = numpy.argwhere(P_gldm)
+    (xstart, ystart), (xstop, ystop) = P_gldm_bounds.min(0), P_gldm_bounds.max(0) + 1
+    return P_gldm[xstart:xstop, :ystop]
 
   def _calculateCoefficients(self):
 
