@@ -142,7 +142,9 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     nZeroMask = countMat > 0  # Prevent division by 0
     dataTemp[nZeroMask] = dataTemp[nZeroMask] / countMat[nZeroMask]
 
-    dataTemp[nZeroMask] = numpy.abs(dataTemp[nZeroMask] - self.matrix[nZeroMask])  # Calculate the absolute difference
+    # Only consider voxels that are part of the Mask AND have a neighbourhood
+    validMask = nZeroMask * self.maskArray.astype('bool')
+    dataTemp[validMask] = numpy.abs(dataTemp[validMask] - self.matrix[validMask])  # Calculate the absolute difference
 
     P_ngtdm = numpy.zeros((Ng, 3), dtype='float')
 
