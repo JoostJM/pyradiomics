@@ -104,6 +104,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     self.matrix = sitk.GetArrayFromImage(self.inputImage).astype('float')
     # Reassign self.maskArray using the now-padded self.inputMask and make it binary
     self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
+    self.matrixCoordinates = numpy.where(self.maskArray != 0)
 
     # binning
     self.matrix, self.histogram = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
@@ -136,7 +137,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     distMap = self._calculateDistanceMap()
 
     # Empty GLDZ matrix
-    P_gldzm = numpy.zeros((self.coefficients['Ng'], int(numpy.max(distMap) + 1)))
+    P_gldzm = numpy.zeros((self.coefficients['Ng'], int(numpy.max(distMap))))
 
     # Iterate over all gray levels in the image
     grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
@@ -181,7 +182,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
             minDistance = distMap[ind_node]
 
         # Update the gray level distance zone matrix, minDistance starts at 0 (voxels on the edge of the ROI.
-        P_gldzm[int(i - 1), int(minDistance)] += 1
+        P_gldzm[int(i - 1), int(minDistance-1)] += 1
 
     if self.verbose: bar.close()
 
