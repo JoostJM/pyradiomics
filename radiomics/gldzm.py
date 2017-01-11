@@ -111,9 +111,9 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     self.coefficients['Np'] = self.targetVoxelArray.size
 
     if radiomics.cMatsEnabled:
-      self.P_gldzm = self._calculateMatrix()
-    else:
       self.P_gldzm = self._calculateCMatrix()
+    else:
+      self.P_gldzm = self._calculateMatrix()
     self._calculateCoefficients()
 
   def _calculateDistanceMap(self):

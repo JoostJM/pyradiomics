@@ -65,9 +65,9 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
 
     if radiomics.cMatsEnabled:
-      self.P_gldm = self._calculateMatrix()
-    else:
       self.P_gldm = self._calculateCMatrix()
+    else:
+      self.P_gldm = self._calculateMatrix()
 
     self._calculateCoefficients()
 
