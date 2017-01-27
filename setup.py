@@ -49,10 +49,12 @@ setup(
     version=versioneer.get_version(),
     cmdclass=commands,
 
-    packages=['radiomics'],
+    packages=['radiomics', 'radiomics.scripts'],
     zip_safe=False,
     data_files=[
       ('data', ['data/paramSchema.yaml', 'data/schemaFuncs.py', 'data/brain1_image.nrrd', 'data/brain1_label.nrrd'])],
+    entry_points={'console_scripts': ['pyradiomics=radiomics.scripts.commandline:main',
+                                    'pyradiomicsbatch=radiomics.scripts.commandlinebatch:main']},
 
     description='Radiomics features library for python',
 
