@@ -127,9 +127,6 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
         P_gldm[int(i - 1), d] = numpy.sum(i_mat * (depMat == d))
     if self.verbose: bar.close()
 
-    sumP_gldm = numpy.sum(P_gldm, (0, 1))
-    self.coefficients['sumP_gldm'] = sumP_gldm
-
     return P_gldm
 
   def _calculateCMatrix(self):
@@ -143,9 +140,12 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     # Crop dependence axis of GLDM matrix up to maximum observed dependence
     P_gldm_bounds = numpy.argwhere(P_gldm)
     (xstart, ystart), (xstop, ystop) = P_gldm_bounds.min(0), P_gldm_bounds.max(0) + 1
+
     return P_gldm[xstart:xstop, :ystop]
 
   def _calculateCoefficients(self):
+
+    sumP_gldm = numpy.sum(self.P_gldm, (0, 1))
 
     pd = numpy.sum(self.P_gldm, 0)
     pg = numpy.sum(self.P_gldm, 1)
@@ -153,6 +153,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     ivector = numpy.arange(1, self.P_gldm.shape[0] + 1, dtype=numpy.float64)
     jvector = numpy.arange(1, self.P_gldm.shape[1] + 1, dtype=numpy.float64)
 
+    self.coefficients['sumP_gldm'] = sumP_gldm
     self.coefficients['pd'] = pd
     self.coefficients['pg'] = pg
     self.coefficients['ivector'] = ivector
