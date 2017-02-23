@@ -1,6 +1,7 @@
-import numpy
-
 from itertools import chain
+
+import numpy
+from six.moves import range
 
 from radiomics import base, cMatrices, cMatsEnabled, imageoperations
 
@@ -92,13 +93,14 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
     self.coefficients['Nr'] = numpy.max(self.matrix.shape)
     self.coefficients['Np'] = self.targetVoxelArray.size
 
-    if cMatsEnabled:
-      self.P_glrlm = self._calculateCGLRLM()
+    if cMatsEnabled():
+      self.P_glrlm = self._calculateCMatrix()
     else:
-      self.P_glrlm = self._calculateGLRLM()
+      self.P_glrlm = self._calculateMatrix()
+
     self._calculateCoefficients()
 
-  def _calculateGLRLM(self):
+  def _calculateMatrix(self):
     Ng = self.coefficients['Ng']
     Nr = self.coefficients['Nr']
 
@@ -123,16 +125,16 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
         d2 = movingDims[1]
         direction = numpy.where(angle < 0, -1, 1)
         diags = chain.from_iterable([self.matrix[::direction[0], ::direction[1], ::direction[2]].diagonal(a, d1, d2)
-                                     for a in xrange(-self.matrix.shape[d1] + 1, self.matrix.shape[d2])])
+                                     for a in range(-self.matrix.shape[d1] + 1, self.matrix.shape[d2])])
 
       else:  # movement in 3 dimensions, e.g. angle (1, 1, 1)
         diags = []
         direction = numpy.where(angle < 0, -1, 1)
         for h in [self.matrix[::direction[0], ::direction[1], ::direction[2]].diagonal(a, 0, 1)
-                  for a in xrange(-self.matrix.shape[0] + 1, self.matrix.shape[1])]:
-          diags.extend([h.diagonal(b, 0, 1) for b in xrange(-h.shape[0] + 1, h.shape[1])])
+                  for a in range(-self.matrix.shape[0] + 1, self.matrix.shape[1])]:
+          diags.extend([h.diagonal(b, 0, 1) for b in range(-h.shape[0] + 1, h.shape[1])])
 
-      matrixDiagonals.append(filter(lambda diag: numpy.nonzero(diag != padVal)[0].size > 0, diags))
+      matrixDiagonals.append(filter(lambda diag: numpy.any(diag != padVal), diags))
 
     P_glrlm = numpy.zeros((Ng, Nr, int(len(matrixDiagonals))))
 
@@ -142,27 +144,49 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
       P = P_glrlm[:, :, angle_idx]
       # Check whether delineation is 2D for current angle (all diagonals contain 0 or 1 non-pad value)
       isMultiElement = False
-      for d in angle:
-        if numpy.where(d != padVal)[0].shape[0] > 1:
+      for diagonal in angle:
+        if not isMultiElement and numpy.sum(diagonal != padVal) > 1:
           isMultiElement = True
-          break
-      if isMultiElement:
-        for diagonal in angle:
-          pos, = numpy.where(numpy.diff(diagonal) != 0)
-          pos = numpy.concatenate(([0], pos + 1, [len(diagonal)]))
-          rle = zip([int(n) for n in diagonal[pos[:-1]]], pos[1:] - pos[:-1])
-          for level, run_length in rle:
-            if level != padVal:
-              P[level - 1, run_length - 1] += 1
+        pos, = numpy.where(numpy.diff(diagonal) != 0)
+        pos = numpy.concatenate(([0], pos + 1, [len(diagonal)]))
+        rle = zip([int(n) for n in diagonal[pos[:-1]]], pos[1:] - pos[:-1])
+        for level, run_length in rle:
+          if level != padVal:
+            P[level - 1, run_length - 1] += 1
+      if not isMultiElement:
+        P[:] = 0
+
+    P_glrlm = self._applyMatrixOptions(P_glrlm, angles)
+
+    return P_glrlm
+
+  def _calculateCMatrix(self):
+    Ng = self.coefficients['Ng']
+    Nr = self.coefficients['Nr']
+
+    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    angles = imageoperations.generateAngles(size)
+
+    P_glrlm = cMatrices.calculate_glrlm(self.matrix, self.maskArray, angles, Ng, Nr)
+    P_glrlm = self._applyMatrixOptions(P_glrlm, angles)
+
+    return P_glrlm
+
+  def _applyMatrixOptions(self, P_glrlm, angles):
+    """
+    Further process the calculated matrix by cropping the matrix to between minimum and maximum observed gray-levels and
+    up to maximum observed run-length. Optionally apply a weighting factor. Finally delete empty angles and store the
+    sum of the matrix in ``self.coefficients``.
+    """
 
     # Crop gray-level axis of GLRLMs to between minimum and maximum observed gray-levels
     # Crop run-length axis of GLRLMs up to maximum observed run-length
     P_glrlm_bounds = numpy.argwhere(P_glrlm)
-    (xstart, ystart, zstart), (xstop, ystop, zstop) = P_glrlm_bounds.min(0), P_glrlm_bounds.max(0) + 1
+    (xstart, ystart, zstart), (xstop, ystop, zstop) = P_glrlm_bounds.min(0), P_glrlm_bounds.max(0) + 1  # noqa: F841
     P_glrlm = P_glrlm[xstart:xstop, :ystop, :]
 
     # Optionally apply a weighting factor
-    if not self.weightingNorm is None:
+    if self.weightingNorm is not None:
       pixelSpacing = self.inputImage.GetSpacing()[::-1]
       weights = numpy.empty(len(angles))
       for a_idx, a in enumerate(angles):
@@ -174,49 +198,6 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
           weights[a_idx] = numpy.sum(numpy.abs(a) * pixelSpacing)
         elif self.weightingNorm == 'no_weighting':
           weights[a_idx] = 1
-        else:
-          self.logger.warning('weigthing norm "%s" is unknown, weighting factor is set to 1', self.weightingNorm)
-          weights[a_idx] = 1
-
-      P_glrlm = numpy.sum(P_glrlm * weights[None, None, :], 2, keepdims=True)
-
-    sumP_glrlm = numpy.sum(P_glrlm, (0, 1))
-
-    # Delete empty angles if no weighting is applied
-    if P_glrlm.shape[2] > 1:
-      P_glrlm = numpy.delete(P_glrlm, numpy.where(sumP_glrlm == 0), 2)
-      sumP_glrlm = numpy.delete(sumP_glrlm, numpy.where(sumP_glrlm == 0), 0)
-
-    self.coefficients['sumP_glrlm'] = sumP_glrlm
-
-    return P_glrlm
-
-  def _calculateCGLRLM(self):
-    Ng = self.coefficients['Ng']
-    Nr = self.coefficients['Nr']
-
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
-
-    P_glrlm = cMatrices.calculate_glrlm(self.matrix, self.maskArray, angles, Ng, Nr)
-
-    # Crop gray-level axis of GLRLMs to between minimum and maximum observed gray-levels
-    # Crop run-length axis of GLRLMs up to maximum observed run-length
-    P_glrlm_bounds = numpy.argwhere(P_glrlm)
-    (xstart, ystart, zstart), (xstop, ystop, zstop) = P_glrlm_bounds.min(0), P_glrlm_bounds.max(0) + 1
-    P_glrlm = P_glrlm[xstart:xstop,:ystop,:]
-
-    # Optionally apply a weighting factor
-    if not self.weightingNorm is None:
-      pixelSpacing = self.inputImage.GetSpacing()[::-1]
-      weights = numpy.empty(len(angles))
-      for a_idx, a in enumerate(angles):
-        if self.weightingNorm == 'infinity':
-          weights[a_idx] = max(numpy.abs(a) * pixelSpacing)
-        elif self.weightingNorm == 'euclidean':
-          weights[a_idx] = numpy.sqrt(numpy.sum((numpy.abs(a) * pixelSpacing) ** 2))
-        elif self.weightingNorm == 'manhattan':
-          weights[a_idx] = numpy.sum(numpy.abs(a) * pixelSpacing)
         else:
           self.logger.warning('weigthing norm "%s" is unknown, weighting factor is set to 1', self.weightingNorm)
           weights[a_idx] = 1

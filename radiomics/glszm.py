@@ -1,8 +1,8 @@
 import numpy
-
+from six.moves import range
 from tqdm import trange
 
-from . import base, cMatrices, cMatsEnabled, imageoperations
+from radiomics import base, cMatrices, cMatsEnabled, imageoperations
 
 
 class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
@@ -59,20 +59,21 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
     super(RadiomicsGLSZM, self).__init__(inputImage, inputMask, **kwargs)
 
     self.coefficients = {}
-    self.P_glszm = None
+    self.P_glszm = {}
 
     # binning
     self.matrix, self.histogram = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
     self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
     self.coefficients['Np'] = self.targetVoxelArray.size
 
-    if cMatsEnabled:
-      self.P_glszm = self._calculateCGLSZM()
+    if cMatsEnabled():
+      self.P_glszm = self._calculateCMatrix()
     else:
-      self.P_glszm = self._calculateGLSZM()
+      self.P_glszm = self._calculateMatrix()
+
     self._calculateCoefficients()
 
-  def _calculateGLSZM(self):
+  def _calculateMatrix(self):
     """
     Number of times a region with a
     gray level and voxel count occurs in an image. P_glszm[level, voxel_count] = # occurrences
@@ -90,7 +91,7 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
 
     if self.verbose: bar = trange(numGrayLevels - 1, desc='calculate GLSZM')
 
-    for i in xrange(1, numGrayLevels):
+    for i in range(1, numGrayLevels):
       # give some progress
       if self.verbose: bar.update()
 
@@ -133,10 +134,10 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
     # Crop gray-level axis of GLSZM matrix to between minimum and maximum observed gray-levels
     # Crop size-zone area axis of GLSZM matrix up to maximum observed size-zone area
     P_glszm_bounds = numpy.argwhere(P_glszm)
-    (xstart, ystart), (xstop, ystop) = P_glszm_bounds.min(0), P_glszm_bounds.max(0) + 1
+    (xstart, ystart), (xstop, ystop) = P_glszm_bounds.min(0), P_glszm_bounds.max(0) + 1  # noqa: F841
     return P_glszm[xstart:xstop, :ystop]
 
-  def _calculateCGLSZM(self):
+  def _calculateCMatrix(self):
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     angles = imageoperations.generateAngles(size)
     Ng = self.coefficients['Ng']

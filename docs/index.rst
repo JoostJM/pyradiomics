@@ -68,17 +68,20 @@ Joost J.M. van Griethuysen et al, “Computational Radiomics System to Decode th
 Installation
 ------------
 
+PyRadiomics is OS independent and compatible with both Python 2.7 and Python >=3.4.
+
 * Clone the repository
 
   * ``git clone git://github.com/Radiomics/pyradiomics``
 
-* Install on your system, with prerequisites:
+* Install on your system (Linux, Mac OSX), with prerequisites:
 
   * ``cd pyradiomics``
   * ``sudo python -m pip install -r requirements.txt``
   * ``sudo python setup.py install``
 
-* For more detailed installation instructions see :ref:`Installation Details<installation-label>`
+* For more detailed installation instructions and installation on Windows see
+  :ref:`Installation Details<installation-label>`
 
 .. toctree::
    :maxdepth: 2
@@ -121,12 +124,10 @@ Developers
 :sup:`5`\ Kitware,
 :sup:`6`\ Isomics
 
-General references
-------------------
-* HJWL Aerts, ER Velazquez, RTH Leijenaar, et al., "Decoding tumour phenotype by noninvasive imaging using a
-  quantitative radiomics approach", vol. 5, Nat Communication, 2014.
-  Available `here <http://www.nature.com/ncomms/2014/140603/ncomms5006/full/ncomms5006.html>`_.
-  Specifically, the formulation of the individual feature calculation is covered in this
-  `supplement <http://www.nature.com/ncomms/2014/140603/ncomms5006/extref/ncomms5006-s1.pdf>`_.
-* Zwanenburg A, Leger S, Vallières M, Löck S., "Image biomarker standardisation initiative - feature definitions",
-  arXiv:161207003. 2016. Available `here <http://arxiv.org/abs/1612.07003>`_.
+Contact
+-------
+We are happy to help you with any questions. Please contact us on the `pyradiomics email list <https://groups.google.com/forum/#!forum/pyradiomics>`_.
+
+We'd welcome your contributions to PyRadiomics. Please read the
+`contributing guidelines <https://github.com/Radiomics/pyradiomics/blob/master/CONTRIBUTING.md>`_ on how to contribute
+to PyRadiomics.

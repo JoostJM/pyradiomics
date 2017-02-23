@@ -1,6 +1,9 @@
-from radiomics import firstorder, glcm, imageoperations, shape, glrlm, glszm
+
+import sys
+
 import SimpleITK as sitk
-import sys, os
+
+from radiomics import imageoperations
 
 image = sitk.ReadImage(sys.argv[1])
 mask = sitk.ReadImage(sys.argv[2])

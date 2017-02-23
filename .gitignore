@@ -58,6 +58,10 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# IDE junk
+.idea/*
+*.swp
+
 # PyBuilder
 target/
 

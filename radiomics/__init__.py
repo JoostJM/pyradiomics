@@ -1,17 +1,20 @@
+# For convenience, import collection and numpy
+# into the "pyradiomics" namespace
+
+import collections  # noqa: F401
+import inspect
+import logging
+import os
+import pkgutil
 import sys
 import traceback
-import pkgutil
-import inspect
-import os
-import importlib
+
+import numpy  # noqa: F401
+
+from . import base, imageoperations
 
 if sys.version_info < (2, 6, 0):
   raise ImportError("pyradiomics > 0.9.7 requires python 2.6 or later")
-in_py3 = sys.version_info[0] > 2
-
-import logging
-
-from . import base
 
 
 def debug(debug_on=True):
@@ -39,6 +42,36 @@ def debug(debug_on=True):
     debugging = False
 
 
+def enableCExtensions(enabled=True):
+  """
+  By default, calculation of GLCM, GLRLM and GLSZM is done in C, using extension ``_cmatrices.py``
+
+  If an error occurs during loading of this extension, a warning is logged and the extension is disabled,
+  matrices are then calculated in python.
+  The C extension can be disabled by calling this function as ``enableCExtensions(False)``, which forces the calculation
+  of the matrices to full-python mode.
+
+  Re-enabling use of C implementation is also done by this function, but if the extension is not loaded correctly,
+  a warning is logged and matrix calculation is forced to full-python mode.
+  """
+  global _cMatsState, logger
+  if enabled:
+    # If extensions are not yet enabled (_cMatsState == 2), check whether they are loaded (_cMatsState == 1) and if so,
+    # enable them. Otherwise, log a warning.
+    if _cMatsState == 1:  # Extension loaded but not enabled
+      logger.info("Enabling C extensions")
+      _cMatsState = 2  # Enables matrix calculation in C
+    elif _cMatsState == 0:  # _Extension not loaded correctly, do not enable matrix calculation in C and log warning
+      logger.warning("C Matrices not loaded correctly, cannot calculate matrices in C")
+  elif _cMatsState == 2:  # enabled = False, _cMatsState = 2: extensions currently enabled, disable them
+    logger.info("Disabling C extensions")
+    _cMatsState = 1
+
+
+def cMatsEnabled():
+  return _cMatsState == 2
+
+
 def getFeatureClasses():
   """
   Iterates over all modules of the radiomics package using pkgutil and subsequently imports those modules.
@@ -49,47 +82,42 @@ def getFeatureClasses():
   This is achieved by inspect.getmembers. Modules are added if it contains a member that is a class,
   with name starting with 'Radiomics' and is inherited from :py:class:`radiomics.base.RadiomicsFeaturesBase`.
 
-  This iteration only runs once, subsequent calls return the dictionary created by the first call.
+  This iteration only runs once (at initialization of toolbox), subsequent calls return the dictionary created by the
+  first call.
   """
   global _featureClasses
-  if _featureClasses is not None:
-    return _featureClasses
+  if _featureClasses is None:  # On first call, enumerate possible feature classes and import PyRadiomics modules
+    _featureClasses = {}
+    for _, mod, _ in pkgutil.iter_modules([os.path.dirname(base.__file__)]):
+      if str(mod).startswith('_'):  # Skip loading of 'private' classes, these don't contain feature classes
+        continue
+      __import__('radiomics.' + mod)
+      module = sys.modules['radiomics.' + mod]
+      attributes = inspect.getmembers(module, inspect.isclass)
+      for a in attributes:
+        if a[0].startswith('Radiomics'):
+          if base.RadiomicsFeaturesBase in inspect.getmro(a[1])[1:]:
+            _featureClasses[mod] = a[1]
 
-  featureClasses = {}
-  for _, mod, _ in pkgutil.iter_modules([os.path.dirname(base.__file__)]):
-    if str(mod).startswith('_'):  # Do not load _version, _cmatrices and _cshape here
-      continue
-    __import__('radiomics.' + mod)
-    module = sys.modules['radiomics.' + mod]
-    attributes = inspect.getmembers(module, inspect.isclass)
-    for a in attributes:
-      if a[0].startswith('Radiomics'):
-        if base.RadiomicsFeaturesBase in inspect.getmro(a[1])[1:]:
-          featureClasses[mod] = a[1]
-  _featureClasses = featureClasses
-
-  return featureClasses
+  return _featureClasses
 
 
-def pythonMatrixCalculation(usePython = False):
+def getInputImageTypes():
   """
-  By default, calculation of matrices is done in C, using extension ``_cmatrices.py``
+  Returns a list of possible input image types. This function finds the image types dynamically by matching the
+  signature ("get<inputImage>Image") against functions defined in :ref:`imageoperations
+  <radiomics-imageoperations-label>`. Returns a list containing available input image names (<inputImage> part of the
+  corresponding function name).
 
-  If an error occurs during loading of this extension, a warning is logged and the extension is disabled,
-  matrices are then calculated in python.
-  Calculation in python can be forced by calling this function, specifying ``pyMatEnabled = True``
-
-  Re-enabling use of C implementation is also done by this function, but if extension is not loaded correctly,
-  a warning is logged and matrix calculation uses python.
+  This iteration only occurs once, at initialization of the toolbox. Found results are stored and returned on subsequent
+  calls.
   """
-  global cMatsEnabled
-  if usePython:
-    cMatsEnabled = False
-  elif _cMatLoaded:
-    cMatsEnabled = True
-  else:
-    logger.warning("C Matrices not loaded correctly, cannot calculate matrices in C")
-    cMatsEnabled = False
+  global _inputImages
+  if _inputImages is None:  # On first cal, enumerate possible input image types (original and any filters)
+    _inputImages = [member[3:-5] for member in dir(imageoperations)
+                    if member.startswith('get') and member.endswith("Image")]
+
+  return _inputImages
 
 
 debugging = True
@@ -102,21 +130,21 @@ logger.addHandler(handler)
 debug(False)  # force level=WARNING, in case logging default is set differently (issue 102)
 
 _featureClasses = None
+_inputImages = None
+
+# Indicates status of C extensions: 0 = not loaded, 1 = loaded but not enabled, 2 = enabled
+_cMatsState = 0
 
 try:
+  logger.debug("Loading C extensions")
   from . import _cmatrices as cMatrices
   from . import _cshape as cShape
-  cMatsEnabled = True
-  _cMatLoaded = True
+  _cMatsState = 1
+  enableCExtensions()
 except Exception:
-  logger.warning("Error loading C Matrices, switching to python calculation\n%s", traceback.format_exc())
-  cMatrices = None
+  logger.warning("Error loading C extensions, switching to python calculation:\n%s", traceback.format_exc())
+  cMatrices = None  # set cMatrices to None to prevent an import error in the feature classes.
   cShape = None
-  cMatsEnabled = False
-  _cMatLoaded = False
-
-# For convenience, import the most used packages into the "pyradiomics" namespace
-import collections, numpy
 
 from ._version import get_versions
 
@@ -124,3 +152,4 @@ __version__ = get_versions()['version']
 del get_versions
 
 getFeatureClasses()
+getInputImageTypes()

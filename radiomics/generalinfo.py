@@ -2,15 +2,16 @@ import collections
 import logging
 
 import SimpleITK as sitk
+import six
 
-from . import __version__
+import radiomics
 
 
 class GeneralInfo():
   def __init__(self, imagePath, maskPath, resampledMask, kwargs, inputImages):
     self.logger = logging.getLogger(self.__module__)
 
-    if isinstance(imagePath, basestring):
+    if isinstance(imagePath, six.string_types):
       self.image = sitk.ReadImage(imagePath)
     elif isinstance(imagePath, sitk.Image):
       self.image = imagePath
@@ -18,7 +19,7 @@ class GeneralInfo():
       self.logger.warning('Error reading image Filepath or SimpleITK object')
       self.image = None
 
-    if isinstance(maskPath, basestring):
+    if isinstance(maskPath, six.string_types):
       self.mask = sitk.ReadImage(maskPath)
     elif isinstance(maskPath, sitk.Image):
       self.mask = maskPath
@@ -116,7 +117,7 @@ class GeneralInfo():
     """
     Return the current version of this package.
     """
-    return __version__
+    return radiomics.__version__
 
   def getVolumeNumValue(self):
     """

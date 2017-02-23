@@ -1,7 +1,8 @@
 import numpy
 import SimpleITK as sitk
+from six.moves import range
 
-from . import base, cShape, cMatsEnabled
+from radiomics import base, cMatsEnabled, cShape
 
 
 class RadiomicsShape(base.RadiomicsFeaturesBase):
@@ -26,24 +27,28 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     cpif = sitk.ConstantPadImageFilter()
 
     padding = numpy.tile(1, 3)
-    cpif.SetPadLowerBound(padding)
-    cpif.SetPadUpperBound(padding)
+    try:
+      cpif.SetPadLowerBound(padding)
+      cpif.SetPadUpperBound(padding)
+    except TypeError:
+      # newer versions of SITK/python want a tuple or list
+      cpif.SetPadLowerBound(padding.tolist())
+      cpif.SetPadUpperBound(padding.tolist())
 
     self.inputMask = cpif.Execute(self.inputMask)
 
     # Reassign self.maskArray using the now-padded self.inputMask and make it binary
-    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label)
+    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
     self.matrixCoordinates = numpy.where(self.maskArray != 0)
 
     # Volume and Surface Area are pre-calculated
     self.Volume = self.lssif.GetPhysicalSize(self.label)
-    if cMatsEnabled:
+    if cMatsEnabled():
       self.SurfaceArea = self._calculateCSurfaceArea()
     else:
       self.SurfaceArea = self._calculateSurfaceArea()
 
   def _calculateSurfaceArea(self):
-    self.maskArray = self.maskArray.astype('int')  # needed for the interpolate function to work correctly
     # define relative locations of the 8 voxels of a sampling cube
     gridAngles = numpy.array([(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0),
                               (1, 0, 0), (1, 0, 1), (1, 1, 1), (1, 1, 0)])
@@ -59,9 +64,9 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
 
     S_A = 0.0
     # iterate over all voxels which may border segmentation or are a part of it
-    for v_z in xrange(minBounds[0] - 1, maxBounds[0] + 1):
-      for v_y in xrange(minBounds[1] - 1, maxBounds[1] + 1):
-        for v_x in xrange(minBounds[2] - 1, maxBounds[2] + 1):
+    for v_z in range(minBounds[0] - 1, maxBounds[0] + 1):
+      for v_y in range(minBounds[1] - 1, maxBounds[1] + 1):
+        for v_x in range(minBounds[2] - 1, maxBounds[2] + 1):
           # indices to corners of current sampling cube
           gridCell = gridAngles + [v_z, v_y, v_x]
 
@@ -120,7 +125,7 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
   def _getMaximum2Ddiameter(self, dim):
     otherDims = tuple(set([0, 1, 2]) - set([dim]))
 
-    a = numpy.array(zip(*self.matrixCoordinates))
+    a = numpy.array(list(zip(*self.matrixCoordinates)))
 
     maxDiameter = 0
     # Check maximum diameter in every slice, retain the overall maximum

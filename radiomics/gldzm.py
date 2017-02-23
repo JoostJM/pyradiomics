@@ -94,8 +94,13 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     # applied on the image (x, y, z) and the matrix is (z, y, x)
     padding = numpy.where(numpy.array(self.matrix.shape)[::-1] == 1, 0, 1)
 
-    cpif.SetPadLowerBound(padding)
-    cpif.SetPadUpperBound(padding)
+    try:
+      cpif.SetPadLowerBound(padding)
+      cpif.SetPadUpperBound(padding)
+    except TypeError:
+      # newer versions of SITK/python want a tuple or list
+      cpif.SetPadLowerBound(padding.tolist())
+      cpif.SetPadUpperBound(padding.tolist())
 
     self.inputImage = cpif.Execute(self.inputImage)
     self.inputMask = cpif.Execute(self.inputMask)

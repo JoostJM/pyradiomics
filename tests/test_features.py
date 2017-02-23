@@ -6,9 +6,9 @@ import logging
 import os
 
 from nose_parameterized import parameterized
-from radiomics.featureextractor import RadiomicsFeaturesExtractor
 
-from .testUtils import RadiomicsTestUtils, custom_name_func
+from radiomics.featureextractor import RadiomicsFeaturesExtractor
+from testUtils import custom_name_func, RadiomicsTestUtils
 
 testUtils = RadiomicsTestUtils()
 testCases = testUtils.getTestCases()
@@ -67,15 +67,15 @@ class TestFeatures:
 def teardown_module():
   print("")
   res = testUtils.getResults()
-  print 'Results:'
-  print res
+  print('Results:')
+  print(res)
   resultsFile = os.path.join(testUtils.getDataDir(), 'PyradiomicsFeatures.csv')
   testUtils.writeCSV(res, resultsFile)
   diff = testUtils.getDiffs()
-  print 'Differences from baseline:'
-  print diff
+  print('Differences from baseline:')
+  print(diff)
   diffFile = os.path.join(testUtils.getDataDir(), 'Baseline2PyradiomicsFeaturesDiff.csv')
   testUtils.writeCSV(diff, diffFile)
   logging.info(
-    "Wrote calculated features to %s, and the differences between the matlab features and the pyradiomics ones to %s.",
+    "Wrote calculated features to %s, and the differences between the baseline features and the calculated ones to %s.",
     resultsFile, diffFile)

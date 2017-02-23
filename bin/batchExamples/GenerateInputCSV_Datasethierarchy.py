@@ -1,5 +1,8 @@
-import os
+from __future__ import print_function
+
 import csv
+import os
+
 from DatasetHierarchyReader import DatasetHierarchyReader
 
 
@@ -15,12 +18,12 @@ def main():
   keywordSettings['mask'] = 'label'
   keywordSettings['maskExclusion'] = ''
 
-  print "Scanning files..."
+  print("Scanning files...")
 
   datasetReader = DatasetHierarchyReader(inputDirectory, filetype=filetype)
   datasetHierarchyDict = datasetReader.ReadDatasetHierarchy()
 
-  print "Found %s patients, writing csv" % (str(len(datasetHierarchyDict.keys())))
+  print("Found %s patients, writing csv" % (str(len(datasetHierarchyDict.keys()))))
 
   try:
     with open(outputFile, 'wb') as outFile:
@@ -42,8 +45,8 @@ def main():
             # ReaderName is not extracted using DatasetHierarchyReader, set it to 'N/A'
             cw.writerow([patientID, studyDate, 'N/A', imageFilepath, maskFilepath])
 
-  except Exception, e:
-    print e
+  except Exception as exc:
+    print(exc)
 
 
 if __name__ == '__main__':

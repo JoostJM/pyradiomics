@@ -1,6 +1,6 @@
 import numpy
 
-from . import base, imageoperations
+from radiomics import base, imageoperations
 
 
 class RadiomicsFirstOrder(base.RadiomicsFeaturesBase):

@@ -1,7 +1,11 @@
 
+[![Appveyor](https://ci.appveyor.com/api/projects/status/tw69xbbeyluk7fl7/branch/master?svg=true)](https://ci.appveyor.com/project/Radiomics/pyradiomics/branch/master)
+
 [![Circle CI](https://circleci.com/gh/Radiomics/pyradiomics.svg?style=svg&circle-token=a4748cf0de5fad2c12bc93a485282378551c3584)](https://circleci.com/gh/Radiomics/pyradiomics)
 
-# pyradiomics v1.0
+[![Travis CI](https://travis-ci.org/Radiomics/pyradiomics.svg?branch=master)](https://travis-ci.org/Radiomics/pyradiomics)
+
+# pyradiomics v1.1.0
 
 ## Radiomics feature extraction in Python
 
@@ -49,12 +53,18 @@ Alternatively, you can generate the documentation by checking out the master bra
 
 The documentation can then be viewed in a browser by opening `PACKAGE_ROOT\build\sphinx\html\index.html`. 
 
+Furthermore, an instruction video is available [here](http://radiomics.io/pyradiomics.html).
+
 ### Installation
 
-To install this package run the following commands from the root directory:
+PyRadiomics is OS independent and compatible with both Python 2.7 and Python >=3.4.
+To install this package on unix like systems run the following commands from the root directory:
 
-    python -m pip install -r requirements.txt
-    python setup.py install
+    sudo python -m pip install -r requirements.txt
+    sudo python setup.py install
+
+Detailed installation instructions, as well as instructions for installing PyRadiomics on Windows are available in the 
+[documentation](http://pyradiomics.readthedocs.io/en/latest/installation.html).
 
 ### Usage
 
@@ -83,8 +93,7 @@ Joost J.M. van Griethuysen et al, “Computational Radiomics System to Decode th
 See also the [requirements file](requirements.txt).
 
 ### WIP
- - Implementation of this package as an extension to [3D Slicer](https://github.com/Slicer/Slicer)
- - Enhancing performance by implementation of C for computationally expensive code
+ - Implementation of this package as an [extension](https://github.com/Radiomics/SlicerRadiomics) to [3D Slicer](slicer.org)
 
 ### License
 This package is covered by the [3D Slicer License](LICENSE.txt).
@@ -108,13 +117,10 @@ This package is covered by the [3D Slicer License](LICENSE.txt).
 <sup>5</sup>Kitware,
 <sup>6</sup>Isomics
 
-### General references
+### Contact
 
-- HJWL Aerts, ER Velazquez, RTH Leijenaar, et al., "Decoding tumour phenotype by noninvasive imaging using a 
-  quantitative radiomics approach", vol. 5, Nat Communication, 2014. 
-  Available [here](http://www.nature.com/ncomms/2014/140603/ncomms5006/full/ncomms5006.html).
-  Specifically, the formulation of the individual feature calculation is covered in this 
-  [supplement](http://www.nature.com/ncomms/2014/140603/ncomms5006/extref/ncomms5006-s1.pdf).
-- Zwanenburg A, Leger S, Vallières M, Löck S., "Image biomarker standardisation initiative - feature definitions", 
-  arXiv:161207003. 2016. Available [here](http://arxiv.org/abs/1612.07003).
+We are happy to help you with any questions. Please contact us on the [pyradiomics email list](https://groups.google.com/forum/#!forum/pyradiomics).
+
+We welcome contributions to PyRadiomics. Please read the [contributing guidelines](CONTRIBUTING.md) on how to contribute
+to PyRadiomics.
 

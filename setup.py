@@ -11,6 +11,9 @@ with open('requirements.txt', 'r') as fp:
 with open('requirements-dev.txt', 'r') as fp:
     dev_requirements = list(filter(bool, (line.strip() for line in fp)))
 
+with open('requirements-setup.txt', 'r') as fp:
+    setup_requirements = list(filter(bool, (line.strip() for line in fp)))
+
 class NoseTestCommand(TestCommand):
     """Command to run unit tests using nose driver after in-place build"""
 
@@ -36,8 +39,6 @@ class NoseTestCommand(TestCommand):
 commands = versioneer.get_cmdclass()
 commands['test'] = NoseTestCommand
 
-setup_requires = []
-
 setup(
     name='pyradiomics',
 
@@ -52,30 +53,31 @@ setup(
     packages=['radiomics', 'radiomics.scripts'],
     zip_safe=False,
     data_files=[
-      ('data', ['data/paramSchema.yaml', 'data/schemaFuncs.py', 'data/brain1_image.nrrd', 'data/brain1_label.nrrd'])],
+      ('data', ['data/paramSchema.yaml', 'data/schemaFuncs.py'])],
     entry_points={'console_scripts': ['pyradiomics=radiomics.scripts.commandline:main',
                                     'pyradiomicsbatch=radiomics.scripts.commandlinebatch:main']},
 
     description='Radiomics features library for python',
-
     license='Slicer',
 
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
         'License :: Slicer',
         'Operating System :: OS Independent',
         'Programming Language :: C',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
-        'Topic :: Scientific/Engineering :: Bio-Informatics',
-        ],
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Topic :: Scientific/Engineering :: Bio-Informatics'],
 
     keywords='radiomics cancerimaging medicalresearch',
 
     install_requires=requirements,
-    setup_requires=setup_requires,
     test_suite='nose.collector',
     tests_require=dev_requirements,
+    setup_requires=setup_requirements
 )

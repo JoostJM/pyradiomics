@@ -1,9 +1,14 @@
-import os
-import logging
-import csv
+
+from __future__ import print_function
+
 import collections
+import csv
+import logging
+import os
 import traceback
+
 import SimpleITK as sitk
+
 import radiomics
 from radiomics import featureextractor
 
@@ -33,7 +38,7 @@ def main():
   radiomics.logger.handlers[0].setLevel(logging.WARNING)
 
   logging.info('Loading CSV')
-  print "Loading CSV"
+  print("Loading CSV")
 
   flists = []
   try:
@@ -43,24 +48,25 @@ def main():
   except Exception:
     logging.error('CSV READ FAILED:\n%s', traceback.format_exc())
 
-  print "Loading Done"
-  print ("Patients: " + str(len(flists)))
+  print("Loading Done")
+  print("Patients: " + str(len(flists)))
 
   kwargs = {}
   kwargs['binWidth'] = 25
   kwargs['resampledPixelSpacing'] = None  # [3,3,3]
   kwargs['interpolator'] = sitk.sitkBSpline
   kwargs['verbose'] = True
+  kwargs['enableCExtensions'] = False
 
   logging.info('pyradiomics version: %s', radiomics.__version__)
   logging.info('Extracting features with kwarg settings: %s', str(kwargs))
 
   extractor = featureextractor.RadiomicsFeaturesExtractor(**kwargs)
-  extractor.enableInputImages(original={})
+  extractor.enableInputImages(Original={})
   # extractor.enableInputImages(wavelet= {'level': 2})
   for idx, entry in enumerate(flists, start=1):
 
-    print "(%d/%d) Processing Patient: %s, Study: %s, Reader: %s" % (idx, len(flists), entry[0], entry[1], entry[2])
+    print("(%d/%d) Processing Patient: %s, Study: %s, Reader: %s" % (idx, len(flists), entry[0], entry[1], entry[2]))
     logging.info("(%d/%d) Processing Patient: %s, Study: %s, Reader: %s", idx, len(flists), entry[0], entry[1],
                  entry[2])
 
