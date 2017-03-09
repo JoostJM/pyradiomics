@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import versioneer
-
 from setuptools.command.test import test as TestCommand
 from skbuild import setup
+
+import versioneer
 
 with open('requirements.txt', 'r') as fp:
     requirements = list(filter(bool, (line.strip() for line in fp)))
@@ -55,7 +55,7 @@ setup(
     data_files=[
       ('data', ['data/paramSchema.yaml', 'data/schemaFuncs.py'])],
     entry_points={'console_scripts': ['pyradiomics=radiomics.scripts.commandline:main',
-                                    'pyradiomicsbatch=radiomics.scripts.commandlinebatch:main']},
+                  'pyradiomicsbatch=radiomics.scripts.commandlinebatch:main']},
 
     description='Radiomics features library for python',
     license='Slicer',

@@ -1,5 +1,6 @@
 import numpy
 from tqdm import trange
+
 import radiomics
 from radiomics import base, imageoperations
 
@@ -139,7 +140,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     # Crop gray-level axis of GLDM matrix to between minimum and maximum observed gray-levels
     # Crop dependence axis of GLDM matrix up to maximum observed dependence
     P_gldm_bounds = numpy.argwhere(P_gldm)
-    (xstart, ystart), (xstop, ystop) = P_gldm_bounds.min(0), P_gldm_bounds.max(0) + 1
+    (xstart, ), (xstop, ystop) = P_gldm_bounds.min(0), P_gldm_bounds.max(0) + 1
 
     return P_gldm[xstart:xstop, :ystop]
 

@@ -1,5 +1,6 @@
 import numpy
 from tqdm import trange
+
 import radiomics
 from radiomics import base, imageoperations
 
@@ -264,7 +265,8 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     r"""
     Calculate and return the complexity.
 
-    :math:`Complexity = \frac{1}{N_p^2}\displaystyle\sum^{N_g}_{i = 1}\displaystyle\sum^{N_g}_{j = 1}{|i - j|\frac{p_{i}s_{i} + p_{j}s_{j}}{p_i + p_j}}\text{, where }p_i \neq 0, p_j \neq 0`
+    :math:`Complexity = \frac{1}{N_p^2}\displaystyle\sum^{N_g}_{i = 1}\displaystyle\sum^{N_g}_{j = 1}{|i - j|
+    \frac{p_{i}s_{i} + p_{j}s_{j}}{p_i + p_j}}\text{, where }p_i \neq 0, p_j \neq 0`
 
     An image is considered complex when there are many primitive components in the image, i.e. the image is non-uniform
     and there are many rapid changes in gray level intensity.
