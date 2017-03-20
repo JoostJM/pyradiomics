@@ -50,16 +50,16 @@ class RadiomicsFeaturesExtractor:
   - interpolator [sitkBSpline]: Simple ITK constant or string name thereof, sets interpolator to use for resampling.
     Enumerated value, possible values:
 
-    - sitkNearestNeighbor
-    - sitkLinear
-    - sitkBSpline
-    - sitkGaussian
-    - sitkLabelGaussian
-    - sitkHammingWindowedSinc
-    - sitkCosineWindowedSinc
-    - sitkWelchWindowedSinc
-    - sitkLanczosWindowedSinc
-    - sitkBlackmanWindowedSinc
+    - sitkNearestNeighbor (= 1)
+    - sitkLinear (= 2)
+    - sitkBSpline (= 3)
+    - sitkGaussian (= 4)
+    - sitkLabelGaussian (= 5)
+    - sitkHammingWindowedSinc (= 6)
+    - sitkCosineWindowedSinc (= 7)
+    - sitkWelchWindowedSinc (= 8)
+    - sitkLanczosWindowedSinc (= 9)
+    - sitkBlackmanWindowedSinc (= 10)
 
   - padDistance [5]: Integer, set the number of voxels pad cropped tumor volume with during resampling. Padding occurs
     in new feature space and is done on all faces, i.e. size increases in x, y and z direction by 2*padDistance.
@@ -67,14 +67,15 @@ class RadiomicsFeaturesExtractor:
     padding does not exceed original image boundaries. **N.B. After application of filters image is cropped again
     without padding.**
 
-  N.B. Resampling is disabled when either `resampledPixelSpacing` or `interpolator` is set to `None`
+  .. note::
 
-  In addition to these general settings, filter or featureclass specific settings can be defined here also.
+    Resampling is disabled when either `resampledPixelSpacing` or `interpolator` is set to `None`
+
+  In addition to these general settings, filter or feature class specific settings can be defined here also.
   For more information on possible settings, see the respective filters and feature classes.
 
   By default, all features in all feature classes are enabled.
   By default, only `Original` input image is enabled (No filter applied).
-  N.B. for log, the sigma is set to range 0.5-5.0, step size 0.5.
   """
 
   def __init__(self, *args, **kwargs):
@@ -84,7 +85,6 @@ class RadiomicsFeaturesExtractor:
     self.inputImages = getInputImageTypes()
 
     self.kwargs = {}
-    self.provenance_on = True
     self.inputImages = {}
     self.enabledFeatures = {}
 
@@ -92,16 +92,7 @@ class RadiomicsFeaturesExtractor:
       self.loadParams(args[0])
     else:
       # Set default settings and update with and changed settings contained in kwargs
-      self.kwargs = {'normalize': False,
-                     'normalizeScale': 1,
-                     'removeOutliers': None,
-                     'resampledPixelSpacing': None,  # No resampling by default
-                     'interpolator': sitk.sitkBSpline,
-                     'padDistance': 5,
-                     'label': 1,
-                     'verbose': False,
-                     'enableCExtensions': True,
-                     'additionalInfo': True}
+      self.kwargs = self._getDefaultSettings()
       self.kwargs.update(kwargs)
 
       self.inputImages = {'Original': {}}
@@ -110,6 +101,25 @@ class RadiomicsFeaturesExtractor:
       for featureClassName in self.getFeatureClassNames():
         self.enabledFeatures[featureClassName] = []
 
+  @classmethod
+  def _getDefaultSettings(cls):
+    """
+    Returns a dictionary containg the default settings specified in this class. These settings cover global toolbox
+    settings, such as ``enableCExtensions``, as well as the image pre-processing settings (e.g. resampling). Feature
+    class specific are defined in the respective feature classes and and not included here. Similarly, filter specific
+    settings are defined in ``imageoperations.py`` and also not included here.
+    """
+    return {'normalize': False,
+            'normalizeScale': 1,
+            'removeOutliers': None,
+            'resampledPixelSpacing': None,  # No resampling by default
+            'interpolator': 'sitkBSpline',  # Alternative: sitk.sitkBSpline,
+            'padDistance': 5,
+            'label': 1,
+            'verbose': False,
+            'enableCExtensions': True,
+            'additionalInfo': True}
+
   def addProvenance(self, provenance_on=True):
     """
     Enable or disable reporting of additional information on the extraction. This information includes toolbox version,
@@ -117,7 +127,7 @@ class RadiomicsFeaturesExtractor:
     (ROI) is also provided, including original image spacing, total number of voxels in the ROI and total number of
     fully connected volumes in the ROI.
 
-    To disable this, call ``addProvenance(False)``
+    To disable this, call ``addProvenance(False)``.
     """
     self.kwargs['additionalInfo'] = provenance_on
 
@@ -125,6 +135,7 @@ class RadiomicsFeaturesExtractor:
     """
     Parse specified parameters file and use it to update settings in kwargs, enabled feature(Classes) and input
     images:
+
     - settings not specified in parameters are set to their default value.
     - enabledFeatures are replaced by those in parameters. If no featureClass parameters were specified, all
       featureClasses and features are enabled.
@@ -184,16 +195,7 @@ class RadiomicsFeaturesExtractor:
       self.enabledFeatures = enabledFeatures
 
     # Set default settings and update with and changed settings contained in kwargs
-    self.kwargs = {'normalize': False,
-                   'normalizeScale': 1,
-                   'removeOutliers': None,
-                   'resampledPixelSpacing': None,  # No resampling by default
-                   'interpolator': sitk.sitkBSpline,
-                   'padDistance': 5,
-                   'label': 1,
-                   'verbose': False,
-                   'enableCExtensions': True,
-                   'additionalInfo': True}
+    self.kwargs = self._getDefaultSettings()
     self.kwargs.update(kwargs)
 
   def enableAllInputImages(self):
@@ -284,6 +286,9 @@ class RadiomicsFeaturesExtractor:
     """
     Enable or disable all features in given class.
     """
+    if featureClass not in self.getFeatureClassNames():
+      print("Feature class "+featureClass+" is not recognized")
+      return
     if enabled:
       self.enabledFeatures[featureClass] = []
     elif featureClass in self.enabledFeatures:
@@ -327,44 +332,45 @@ class RadiomicsFeaturesExtractor:
     featureVector = collections.OrderedDict()
     image, mask = self.loadImage(imageFilepath, maskFilepath)
 
-    if self.kwargs['additionalInfo']:
-      featureVector.update(self.getProvenance(imageFilepath, maskFilepath, mask))
+    if image is not None and mask is not None:
+      if self.kwargs['additionalInfo']:
+        featureVector.update(self.getProvenance(imageFilepath, maskFilepath, mask))
 
-    # Bounding box only needs to be calculated once after resampling, store the value, so it doesn't get calculated
-    # after every filter
-    boundingBox = None
+      # Bounding box only needs to be calculated once after resampling, store the value, so it doesn't get calculated
+      # after every filter
+      boundingBox = None
 
-    # If shape should be calculation, handle it separately here
-    if 'shape' in self.enabledFeatures.keys():
-      croppedImage, croppedMask, boundingBox = \
-        imageoperations.cropToTumorMask(image, mask, self.kwargs['label'], boundingBox)
-      enabledFeatures = self.enabledFeatures['shape']
-      shapeClass = self.featureClasses['shape'](croppedImage, croppedMask, **self.kwargs)
-      if enabledFeatures is None or len(enabledFeatures) == 0:
-        shapeClass.enableAllFeatures()
-      else:
-        for feature in enabledFeatures:
-          shapeClass.enableFeatureByName(feature)
+      # If shape should be calculation, handle it separately here
+      if 'shape' in self.enabledFeatures.keys():
+        croppedImage, croppedMask, boundingBox = \
+          imageoperations.cropToTumorMask(image, mask, self.kwargs['label'], boundingBox)
+        enabledFeatures = self.enabledFeatures['shape']
+        shapeClass = self.featureClasses['shape'](croppedImage, croppedMask, **self.kwargs)
+        if enabledFeatures is None or len(enabledFeatures) == 0:
+          shapeClass.enableAllFeatures()
+        else:
+          for feature in enabledFeatures:
+            shapeClass.enableFeatureByName(feature)
 
-      if self.kwargs['verbose']: print("\t\tComputing shape")
-      shapeClass.calculateFeatures()
-      for (featureName, featureValue) in six.iteritems(shapeClass.featureValues):
-        newFeatureName = "original_shape_%s" % (featureName)
-        featureVector[newFeatureName] = featureValue
+        if self.kwargs['verbose']: print("\t\tComputing shape")
+        shapeClass.calculateFeatures()
+        for (featureName, featureValue) in six.iteritems(shapeClass.featureValues):
+          newFeatureName = "original_shape_%s" % (featureName)
+          featureVector[newFeatureName] = featureValue
 
-    # Make generators for all enabled input image types
-    imageGenerators = []
-    for imageType, customKwargs in six.iteritems(self.inputImages):
-      args = self.kwargs.copy()
-      args.update(customKwargs)
-      self.logger.info("Applying filter: '%s' with settings: %s" % (imageType, str(args)))
-      imageGenerators = chain(imageGenerators, eval('imageoperations.get%sImage(image, **args)' % (imageType)))
+      # Make generators for all enabled input image types
+      imageGenerators = []
+      for imageType, customKwargs in six.iteritems(self.inputImages):
+        args = self.kwargs.copy()
+        args.update(customKwargs)
+        self.logger.info("Applying filter: '%s' with settings: %s" % (imageType, str(args)))
+        imageGenerators = chain(imageGenerators, getattr(imageoperations, 'get%sImage' % imageType)(image, **args))
 
-    # Calculate features for all (filtered) images in the generator
-    for inputImage, inputImageName, inputKwargs in imageGenerators:
-      inputImage, inputMask, boundingBox = \
-        imageoperations.cropToTumorMask(inputImage, mask, self.kwargs['label'], boundingBox)
-      featureVector.update(self.computeFeatures(inputImage, inputMask, inputImageName, **inputKwargs))
+      # Calculate features for all (filtered) images in the generator
+      for inputImage, inputImageName, inputKwargs in imageGenerators:
+        inputImage, inputMask, boundingBox = \
+          imageoperations.cropToTumorMask(inputImage, mask, self.kwargs['label'], boundingBox)
+        featureVector.update(self.computeFeatures(inputImage, inputMask, inputImageName, **inputKwargs))
 
     return featureVector
 
@@ -392,22 +398,23 @@ class RadiomicsFeaturesExtractor:
 
     if isinstance(MaskFilePath, six.string_types) and os.path.exists(MaskFilePath):
       mask = sitk.ReadImage(MaskFilePath)
-    elif isinstance(ImageFilePath, sitk.SimpleITK.Image):
+    elif isinstance(MaskFilePath, sitk.SimpleITK.Image):
       mask = MaskFilePath
     else:
       self.logger.warning('Error reading mask Filepath or SimpleITK object')
       if self.kwargs['verbose']: print("Error reading mask Filepath or SimpleITK object")
       mask = None
 
-    if self.kwargs['normalize']:
-      image = imageoperations.normalizeImage(image, self.kwargs['normalizeScale'], self.kwargs['removeOutliers'])
+    if image is not None and mask is not None:
+      if self.kwargs['normalize']:
+        image = imageoperations.normalizeImage(image, self.kwargs['normalizeScale'], self.kwargs['removeOutliers'])
 
-    if self.kwargs['interpolator'] is not None and self.kwargs['resampledPixelSpacing'] is not None:
-      image, mask = imageoperations.resampleImage(image, mask,
-                                                  self.kwargs['resampledPixelSpacing'],
-                                                  self.kwargs['interpolator'],
-                                                  self.kwargs['label'],
-                                                  self.kwargs['padDistance'])
+      if self.kwargs['interpolator'] is not None and self.kwargs['resampledPixelSpacing'] is not None:
+        image, mask = imageoperations.resampleImage(image, mask,
+                                                    self.kwargs['resampledPixelSpacing'],
+                                                    self.kwargs['interpolator'],
+                                                    self.kwargs['label'],
+                                                    self.kwargs['padDistance'])
 
     return image, mask
 
@@ -427,9 +434,14 @@ class RadiomicsFeaturesExtractor:
     """
     Compute signature using image, mask, \*\*kwargs settings.
 
-    This function computes the signature for just the passed image (original or filtered), it does not preprocess or
+    This function computes the signature for just the passed image (original or derived), it does not preprocess or
     apply a filter to the passed image. Features / Classes to use for calculation of signature are defined in
     self.enabledFeatures. See also :py:func:`enableFeaturesByName`.
+
+    .. note::
+
+      shape descriptors are independent of gray level and therefore calculated separately (handeled in `execute`). In
+      this function, no shape functions are calculated.
     """
     featureVector = collections.OrderedDict()
 

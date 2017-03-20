@@ -36,7 +36,7 @@ def main():
   args = parser.parse_args()
 
   # Initialize Logging
-  logLevel = eval('logging.' + args.logging_level)
+  logLevel = getattr(logging, args.logging_level)
   rLogger = logging.getLogger('radiomics')
   rLogger.handlers = []
   rLogger.setLevel(logLevel)
@@ -99,9 +99,9 @@ def main():
         if args.format == 'csv':
           writer = csv.writer(args.outFile, lineterminator='\n')
           if not headers:
-            writer.writerow(featureVector.keys())
+            writer.writerow(list(featureVector.keys()))
             headers = True
-          writer.writerow(featureVector.values())
+          writer.writerow(list(featureVector.values()))
         elif args.format == 'json':
           json.dump(featureVector, args.out)
           args.out.write('\n')
