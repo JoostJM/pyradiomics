@@ -195,7 +195,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
     # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
     P_gldzm_bounds = numpy.argwhere(P_gldzm)
-    (xstart, ), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
+    (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
     return P_gldzm[xstart:xstop, :ystop]
 
   def _calculateCMatrix(self):
@@ -212,7 +212,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
     # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
     P_gldzm_bounds = numpy.argwhere(P_gldzm)
-    (xstart, ), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
+    (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
     return P_gldzm[xstart:xstop, :ystop]
 
   def _calculateCoefficients(self):

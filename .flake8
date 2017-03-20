@@ -31,6 +31,8 @@ ignore:
     E402,
     # multiple statements on one line (colon)
     E701,
+    # local variable is assigned to but never used
+    F841,
     # .has_key() is deprecated, use 'in'
     W601,
 select: C,E,W,F,I
