@@ -52,8 +52,8 @@ setup(
 
     packages=['radiomics', 'radiomics.scripts'],
     zip_safe=False,
-    data_files=[
-      ('data', ['data/paramSchema.yaml', 'data/schemaFuncs.py'])],
+    package_data={'radiomics': ['schemas/paramSchema.yaml', 'schemas/schemaFuncs.py']},
+
     entry_points={'console_scripts': ['pyradiomics=radiomics.scripts.commandline:main',
                   'pyradiomicsbatch=radiomics.scripts.commandlinebatch:main']},
 
