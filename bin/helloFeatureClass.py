@@ -35,8 +35,7 @@ applyWavelet = False
 # Can be enabled by setting 'resampledPixelSpacing' to a list of 3 floats (new voxel size in mm for x, y and z)
 kwargs = {'binWidth': 25,
           'interpolator': sitk.sitkBSpline,
-          'resampledPixelSpacing': None,
-          'verbose': True}
+          'resampledPixelSpacing': None}
 
 #
 # If enabled, resample image (resampled image is automatically cropped.
@@ -45,7 +44,8 @@ kwargs = {'binWidth': 25,
 if kwargs['interpolator'] is not None and kwargs['resampledPixelSpacing'] is not None:
   image, mask = imageoperations.resampleImage(image, mask, kwargs['resampledPixelSpacing'], kwargs['interpolator'])
 else:
-  image, mask, bb = imageoperations.cropToTumorMask(image, mask)
+  bb = imageoperations.checkMask(image, mask)
+  image, mask = imageoperations.cropToTumorMask(image, mask, bb)
 
 #
 # Show the first order feature calculations

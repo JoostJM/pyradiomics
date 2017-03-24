@@ -31,6 +31,8 @@ class RadiomicsFirstOrder(base.RadiomicsFeaturesBase):
     self.pixelSpacing = inputImage.GetSpacing()
     self.voxelArrayShift = kwargs.get('voxelArrayShift', 0)
 
+    self.logger.debug('Feature class initialized')
+
   def _moment(self, a, moment=1, axis=0):
     r"""
     Calculate n-order moment of an array for a given axis
