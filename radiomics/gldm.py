@@ -62,8 +62,8 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     self.P_gldm = None
 
     # binning
-    self.matrix, self.histogram = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = self.histogram[1].shape[0] - 1
+    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
+    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
 
     if radiomics.cMatsEnabled:
       self.P_gldm = self._calculateCMatrix()
