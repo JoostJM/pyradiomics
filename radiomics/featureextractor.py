@@ -361,11 +361,13 @@ class RadiomicsFeaturesExtractor:
     # Make generators for all enabled input image types
     self.logger.debug('Creating input image type iterator')
     imageGenerators = []
+    inputImageTypes = getInputImageTypes()
     for imageType, customKwargs in six.iteritems(self.inputImages):
-      args = self.settings.copy()
-      args.update(customKwargs)
-      self.logger.info('Adding image type "%s" with settings: %s' % (imageType, str(args)))
-      imageGenerators = chain(imageGenerators, getattr(imageoperations, 'get%sImage' % imageType)(image, **args))
+      if imageType in inputImageTypes:
+        args = self.settings.copy()
+        args.update(customKwargs)
+        self.logger.info('Adding image type "%s" with settings: %s' % (imageType, str(args)))
+        imageGenerators = chain(imageGenerators, inputImageTypes[imageType](image, **args))
 
     self.logger.debug('Extracting features')
     # Calculate features for all (filtered) images in the generator

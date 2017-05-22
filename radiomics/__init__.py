@@ -124,18 +124,21 @@ def getFeatureClasses():
 
 def getInputImageTypes():
   """
-  Returns a list of possible input image types. This function finds the image types dynamically by matching the
+  Returns a dictionary of possible input image types. This function finds the image types dynamically by matching the
   signature ("get<inputImage>Image") against functions defined in :ref:`imageoperations
-  <radiomics-imageoperations-label>`. Returns a list containing available input image names (<inputImage> part of the
-  corresponding function name).
+  <radiomics-imageoperations-label>`. Returns a dictionary containing as key the available input image names
+  (<inputImage> part of the corresponding function name) and the abstract function as the value.
 
   This iteration only occurs once, at initialization of the toolbox. Found results are stored and returned on subsequent
   calls.
   """
   global _inputImages
   if _inputImages is None:  # On first cal, enumerate possible input image types (original and any filters)
-    _inputImages = [member[3:-5] for member in dir(imageoperations)
-                    if member.startswith('get') and member.endswith("Image")]
+    _inputImages = {}
+
+    for func in inspect.getmembers(imageoperations, inspect.isfunction):
+      if func[0].startswith('get') and func[0].endswith("Image"):
+        _inputImages[func[0][3:-5]] = func[1]
 
   return _inputImages
 
