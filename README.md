@@ -9,17 +9,13 @@
 
 ## Radiomics feature extraction in Python
 
-This is an open-source python package for the extraction of Radiomics features from 2D and 3D images and 
-segmentations.
+This is an open-source python package for the extraction of Radiomics features from medical imaging.
 
-Image loading and preprocessing (e.g. resampling and cropping) are first done using `SimpleITK`. 
-Then, loaded data are converted into numpy arrays for further calculation using feature classes
-outlined below.
+With this package we aim to establish a reference standard for Radiomic Analysis, and provide a tested and maintained
+open-source platform for easy and reproducible Radiomic Feature extraction. By doing so, we hope to increase awareness
+of radiomic capabilities and expand the community.
 
-With this package we aim to establish a reference standard for Radiomic Analysis, and provide a tested and mantained
-open-source platform for easy and reproducible Radiomic Feature extraction.
-
-By doing so, we hope to increase awareness of radiomic capabilities and expand the community.
+The platform supports both the feature extraction in 2D and 3D.
 
 **If you publish any work which uses this package, please cite the following publication:**\
 *Joost JM van Griethuysen, Andriy Fedorov, Chintan Parmar, Ahmed Hosny, Nicole Aucoin, Vivek Narayan, Regina GH 
@@ -71,11 +67,27 @@ Furthermore, an instruction video is available [here](http://radiomics.io/pyradi
 PyRadiomics is OS independent and compatible with both Python 2.7 and Python >=3.4.
 To install this package on unix like systems run the following commands from the root directory:
 
-    sudo python -m pip install -r requirements.txt
-    sudo python setup.py install
+    python -m pip install -r requirements.txt
+    python setup.py install
 
 Detailed installation instructions, as well as instructions for installing PyRadiomics on Windows are available in the 
 [documentation](http://pyradiomics.readthedocs.io/en/latest/installation.html).
+
+### Docker
+
+PyRadiomics also supports [Dockers](https://www.docker.com/).  Currently, the only docker available is a [Jupyter notebook](http://jupyter.org/) with PyRadiomics pre-installed with example Notebooks. To build the Docker:
+
+    docker build -t radiomics/notebook .
+
+The `radiomics/notebook` Docker has an exposed volume (`/data`) that can be mapped to the host system directory.  For example, to mount the current directory:
+
+    docker run --rm -it --publish 8888:8888 -v `pwd`:/data radiomics/notebook
+
+or for a less secure notebook, skip the randomly generated token
+
+    docker run --rm -it --publish 8888:8888 -v `pwd`:/data radiomics/notebook start-notebook.sh --NotebookApp.token=''
+
+and open the local webpage at http://localhost:8888/ with the current directory at http://localhost:8888/tree/data.
 
 ### Usage
 
@@ -87,8 +99,8 @@ extension for 3D Slicer, available [here](https://github.com/Radiomics/SlicerRad
 
 ### 3rd-party packages used in pyradiomics:
 
- - SimpleITK
- - numpy
+ - SimpleITK (Image loading and preprocessing)
+ - numpy (Feature calculation)
  - PyWavelets (Wavelet filter)
  - pykwalify (Enabling yaml parameters file checking)
  - tqdm (Progressbar)

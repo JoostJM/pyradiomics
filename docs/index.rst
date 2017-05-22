@@ -54,7 +54,7 @@ Currently supports the following feature classes:
 * :ref:`Gray Level Distance Zone Matrix <radiomics-gldzm-label>>` (GLDZM)
 
 
-On average, Pyradiomics extracts :math:`\approx 1300` features per image, which consist of the 13 shape descriptors and
+On average, Pyradiomics extracts :math:`\approx 1300` features per image, which consist of the 16 shape descriptors and
 features extracted from original and derived images (LoG with 5 sigma levels, 1 level of Wavelet decomposistions
 yielding 8 derived images and images derived using Square, Square Root, Logarithm and Exponential filters).
 
@@ -109,8 +109,8 @@ PyRadiomics is OS independent and compatible with both Python 2.7 and Python >=3
 * Install on your system (Linux, Mac OSX), with prerequisites:
 
   * ``cd pyradiomics``
-  * ``sudo python -m pip install -r requirements.txt``
-  * ``sudo python setup.py install``
+  * ``python -m pip install -r requirements.txt``
+  * ``python setup.py install``
 
 * For more detailed installation instructions and installation on Windows see
   :ref:`Installation Details<installation-label>`
