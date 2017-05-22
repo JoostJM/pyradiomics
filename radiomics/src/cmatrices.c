@@ -272,102 +272,85 @@ int fill_glszm(int *tempData, double *glszm, int Ng, int maxRegion)
   return 1;
 }
 
-int calculate_gldzm(int *image, signed char *mask, int *distanceMap, int *size, int *angles, int Na, double *gldzm, int Ng, int Nd)
+int calculate_gldzm(int *image, signed char *mask, int *distanceMap, int *size, int *angles, int Na, double *gldzm, int Ng, int Nd, int Np)
 {
 	int Ni = size[0] * size[1] * size[2];
 	int gldzm_idx;
 	int max_gldzm_idx = Ng * Nd;
 
-	int i = 0, j = 0, cur_idx = 0;
-	int iz, iy, ix;
-	int gl, distance;
-	int cur_z, cur_y, cur_x, ref_idx;
+	int *regionStack;
+	int stackTop = -1;
+
+	int i = 0;
 	int d, a;
 
-	for (iz = 0; iz < size[0]; iz++)
-	{
-		for (iy = 0; iy < size[1]; iy++)
-		{
-			for (ix = 0; ix < size[2]; ix++)
-			{
-				// Check if the current voxel is part of the segmentation and unprocessed
-				if (mask[i] > 0)
-				{
-					// Store current gray level, needed for region growing and determines index in GLSZM.
-					gl = image[i];
+	int gl, distance;
+	int cur_idx, cur_x, cur_y, cur_z, j;
 
-					// Instantiate variable to hold minimum distance at -1. -1 signifies 'not set'.
-					distance = -1;
+	regionStack = (int *)calloc(Np, sizeof(int));
 
-					// Start growing the region
-					cur_idx = i;
+  for (i = 0; i < Ni; i++)  // Loop over all the voxels in the image
+  {
+    // Check if the current voxel is part of the segmentation and unprocessed
+    if (mask[i])
+    {
+      // Store current gray level, needed for region growing and determines index in GLDZM.
+      gl = image[i];
 
-					while (cur_idx > -1)
-					{
-						// Exclude current voxel to prevent reprocessing -> 0 is processed or not part of segmentation
-						// -1 is marked for further processing
-						mask[cur_idx] = 0;
+      // Instantiate variable to hold minimum distance at -1. -1 signifies 'not set'.
+      distance = -1;
 
-						// Store the minimum distance
-						if (distance < 0 || distance > distanceMap[cur_idx]) distance = distanceMap[cur_idx];
+      // Start growing the region
+      regionStack[++stackTop] = i; // Add the current voxel to the stack as 'starting point'
+      mask[i] = 0;  // Mark current voxel as 'processed'
 
-						// Generate neighbours for current voxel
-						cur_z = (cur_idx / (size[1] * size[2]));
-						cur_y = (cur_idx % (size[1] * size[2])) / size[2];
-						cur_x = (cur_idx % (size[1] * size[2])) % size[2];
-						for (d = 1; d >= -1; d -= 2) // Iterate over both directions for each angle
-						{
-							for (a = 0; a < Na; a++)  // Iterate over angles to get the neighbours
-							{
-								// Check whether the neighbour index is not out of range (i.e. part of the image)
-								if (cur_z + d * angles[a * 3] >= 0 && cur_z + d * angles[a * 3] < size[0] &&
-									cur_y + d * angles[a * 3 + 1] >= 0 && cur_y + d * angles[a * 3 + 1] < size[1] &&
-									cur_x + d * angles[a * 3 + 2] >= 0 && cur_x + d * angles[a * 3 + 2] < size[2])
-								{
-									j = cur_idx + d * angles[a * 3 + 2] +
-										d * angles[a * 3 + 1] * size[2] +
-										d * angles[a * 3] * size[1] * size[2];
-									// Check whether neighbour voxel is part of the segmentation and unprocessed
-									if (mask[j] && (image[j] == gl))
-									{
-										// Voxel belongs to current region, mark it for further processing
-										mask[j] = -1;
-									}
-								}
-							} // next a
-						} // next d
+      while (stackTop > -1)
+      {
+        cur_idx = regionStack[stackTop--];  // Get the next voxel to process, on first iteration, this equals i
 
-						if (mask[j] == -1)
-						{
-							cur_idx = j;
-						}
-						else
-						{
-							ref_idx = cur_idx;
-							cur_idx++; // cur_idx doesn't have to be checked
-									   // try to find the next voxel that has been marked for processing (-1)
-									   // If none are found, current region is complete
-									   // increment cur_idx until end of image or a voxel that has been marked is found
-							while (cur_idx < Ni && !(mask[cur_idx] == -1)) cur_idx++;
-							if (cur_idx == Ni) cur_idx = ref_idx; // no voxel found, check between ref_idx and i
-							{
-								while (cur_idx > i && !(mask[cur_idx] == -1)) cur_idx--;
-								if (cur_idx == i) cur_idx = -1;
-							}
-						}
-					} // while region
+        // Store the minimum distance
+        if (distance < 0 || distance > distanceMap[cur_idx]) distance = distanceMap[cur_idx];
 
-					gldzm_idx = (gl - 1) * Nd + (distance - 1);
-					if (gldzm_idx >= max_gldzm_idx) return 0; // Index out of range
-					gldzm[gldzm_idx]++;
-				}
-				// Increase index to point to next item. Only one index is needed as data is stored one dimensionally in memory.
-				// This is in row-column-slice order.
-				i++;
-			}
-		}
-	}
-	return 1;
+        // Generate neighbours for current voxel
+        cur_z = (cur_idx / (size[1] * size[2]));
+        cur_y = (cur_idx % (size[1] * size[2])) / size[2];
+        cur_x = (cur_idx % (size[1] * size[2])) % size[2];
+        for (d = 1; d >= -1; d -= 2) // Iterate over both directions for each angle
+        {
+          for (a = 0; a < Na; a++)  // Iterate over angles to get the neighbours
+          {
+            // Check whether the neighbour index is not out of range (i.e. part of the image)
+            if (cur_z + d * angles[a * 3] >= 0 && cur_z + d * angles[a * 3] < size[0] &&
+              cur_y + d * angles[a * 3 + 1] >= 0 && cur_y + d * angles[a * 3 + 1] < size[1] &&
+              cur_x + d * angles[a * 3 + 2] >= 0 && cur_x + d * angles[a * 3 + 2] < size[2])
+            {
+              j = cur_idx + d * angles[a * 3 + 2] +
+                  d * angles[a * 3 + 1] * size[2] +
+                  d * angles[a * 3] * size[1] * size[2];
+              // Check whether neighbour voxel is part of the current region and unprocessed
+              if (mask[j] && (image[j] == gl))
+              {
+                // Push the voxel index to the stack for further processing
+                regionStack[++stackTop] = j;
+                // Voxel belongs to current region, mark it as 'processed'
+                mask[j] = 0;
+              }
+            }
+          } // next a
+        } // next d
+      }
+
+      gldzm_idx = (gl - 1) * Nd + (distance - 1);
+      if (gldzm_idx >= max_gldzm_idx)
+      {
+        free(regionStack);
+        return 0; // Index out of range
+      }
+      gldzm[gldzm_idx]++;
+    }
+  }
+  free(regionStack);
+  return 1;
 }
 
 int calculate_glrlm(int *image, char *mask, int *size, int *strides, int *angles, int Na, double *glrlm, int Ng, int Nr)

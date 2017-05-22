@@ -148,49 +148,44 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     # Iterate over all gray levels in the image
     grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
 
-    if self.verbose: bar = trange(len(grayLevels), desc='calculate GLDZM')
+    with self.progressReporter(grayLevels, desc='calculate GLDZM') as bar:
+      for i in bar:
 
-    for i in grayLevels:
-      # give some progress
-      if self.verbose: bar.update()
+        ind = zip(*numpy.where(self.matrix == i))
+        ind = list(set(ind).intersection(set(zip(*self.matrixCoordinates))))
 
-      ind = zip(*numpy.where(self.matrix == i))
-      ind = list(set(ind).intersection(set(zip(*self.matrixCoordinates))))
+        while ind:  # check if ind is not empty: unprocessed regions for current gray level
+          # Pop first coordinate of an unprocessed zone, start new stack
+          ind_region = [ind.pop()]
 
-      while ind:  # check if ind is not empty: unprocessed regions for current gray level
-        # Pop first coordinate of an unprocessed zone, start new stack
-        ind_region = [ind.pop()]
+          # Define minDistance
+          minDistance = -1
 
-        # Define minDistance
-        minDistance = -1
+          # Grow zone for item popped from stack of region indices, loop until stack of region indices is exhausted
+          # store minimum distance
+          while ind_region:
+            # Use pop to remove next node for set of unprocessed region indices
+            ind_node = ind_region.pop()
 
-        # Grow zone for item popped from stack of region indices, loop until stack of region indices is exhausted
-        # store minimum distance
-        while ind_region:
-          # Use pop to remove next node for set of unprocessed region indices
-          ind_node = ind_region.pop()
+            # get all coordinates in the 6-connected region, 2 voxels per angle
+            region_full = [tuple(sum(a) for a in zip(ind_node, angle_i)) for angle_i in angles]
+            region_full += [tuple(sum(a) for a in zip(ind_node, angle_i)) for angle_i in angles * -1]
 
-          # get all coordinates in the 6-connected region, 2 voxels per angle
-          region_full = [tuple(sum(a) for a in zip(ind_node, angle_i)) for angle_i in angles]
-          region_full += [tuple(sum(a) for a in zip(ind_node, angle_i)) for angle_i in angles * -1]
+            # get all unprocessed coordinates in the 26-connected region with same gray level
+            region_level = list(set(ind).intersection(set(region_full)))
 
-          # get all unprocessed coordinates in the 26-connected region with same gray level
-          region_level = list(set(ind).intersection(set(region_full)))
+            # Remove already processed indices to prevent reprocessing
+            ind = list(set(ind) - set(region_level))
 
-          # Remove already processed indices to prevent reprocessing
-          ind = list(set(ind) - set(region_level))
+            # Add all found neighbours to the total stack of unprocessed neighbours
+            ind_region.extend(region_level)
 
-          # Add all found neighbours to the total stack of unprocessed neighbours
-          ind_region.extend(region_level)
+            if minDistance < 0 or distMap[ind_node] < minDistance:
+              # minDistance is not set or new minimum is found
+              minDistance = distMap[ind_node]
 
-          if minDistance < 0 or distMap[ind_node] < minDistance:
-            # minDistance is not set or new minimum is found
-            minDistance = distMap[ind_node]
-
-        # Update the gray level distance zone matrix, minDistance starts at 0 (voxels on the edge of the ROI.
-        P_gldzm[int(i - 1), int(minDistance-1)] += 1
-
-    if self.verbose: bar.close()
+          # Update the gray level distance zone matrix, minDistance starts at 0 (voxels on the edge of the ROI.
+          P_gldzm[int(i - 1), int(minDistance-1)] += 1
 
     # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
     # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
@@ -200,6 +195,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
 
   def _calculateCMatrix(self):
     Ng = self.coefficients['Ng']
+    Np = self.coefficients['Np']
 
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     angles = imageoperations.generateAngles(size)
@@ -207,7 +203,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     distMap = self._calculateDistanceMap()
     Nd = int(numpy.max(distMap))
 
-    P_gldzm = radiomics.cMatrices.calculate_gldzm(self.matrix, self.maskArray, distMap, angles, Ng, Nd)
+    P_gldzm = radiomics.cMatrices.calculate_gldzm(self.matrix, self.maskArray, distMap, angles, Ng, Nd, Np)
 
     # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
     # Crop distance-zone axis of GLDZM matrix up to maximum observed distance

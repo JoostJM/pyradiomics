@@ -14,7 +14,7 @@ static char glcm_docstring[] = "Arguments: Image, Mask, Angles, Ng.";
 static char ngtdm_docstring[] = "Arguments: Image, Mask, Angles, Ng.";
 static char gldm_docstring[] = "Arguments: Image, Mask, Angles, Ng, Alpha.";
 static char glszm_docstring[] = "Arguments: Image, Mask, Angles, Ng, Ns, matrix is cropped to maximum size encountered.";
-static char gldzm_docstring[] = "Arguments: Image, Mask, DistanceMap, Angles, Ng, Nd.";
+static char gldzm_docstring[] = "Arguments: Image, Mask, DistanceMap, Angles, Ng, Nd, Np.";
 static char glrlm_docstring[] = "Arguments: Image, Mask, Angles, Ng, Nr.";
 
 static PyObject *cmatrices_calculate_glcm(PyObject *self, PyObject *args);
@@ -485,7 +485,7 @@ static PyObject *cmatrices_calculate_glszm(PyObject *self, PyObject *args)
 
 static PyObject *cmatrices_calculate_gldzm(PyObject *self, PyObject *args)
 {
-	int Ng, Nd;
+	int Ng, Nd, Np;
 	PyObject *image_obj, *mask_obj, *distmap_obj, *angles_obj;
 	PyArrayObject *image_arr, *mask_arr, *distmap_arr, *angles_arr;
 	int size[3];
@@ -502,7 +502,7 @@ static PyObject *cmatrices_calculate_gldzm(PyObject *self, PyObject *args)
 	double *gldzm;
 
 	// Parse the input tuple
-	if (!PyArg_ParseTuple(args, "OOOOii", &image_obj, &mask_obj, &distmap_obj, &angles_obj, &Ng, &Nd))
+	if (!PyArg_ParseTuple(args, "OOOOiii", &image_obj, &mask_obj, &distmap_obj, &angles_obj, &Ng, &Nd, &Np))
 		return NULL;
 
 	// Interpret the input as numpy arrays
@@ -567,7 +567,7 @@ static PyObject *cmatrices_calculate_gldzm(PyObject *self, PyObject *args)
 	for (k = 0; k < gldzm_size; k++) gldzm[k] = 0;
 
 	//Calculate GLDZM
-	if (!calculate_gldzm(image, mask, distmap, size, angles, Na, gldzm, Ng, Nd)) // Error occured
+	if (!calculate_gldzm(image, mask, distmap, size, angles, Na, gldzm, Ng, Nd, Np)) // Error occured
 	{
 		Py_DECREF(image_arr);
 		Py_DECREF(mask_arr);

@@ -87,46 +87,41 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
 
     depMat = numpy.zeros(self.matrix.shape, dtype='int')
 
-    if self.verbose: bar = trange(len(angles), desc='Calculate shifted matrices (GLDM)')
-    for a_idx, a in enumerate(angles):
-      if self.verbose: bar.update()
-      # create shifted array (by angle), so that for an index idx, angMat[idx] is the neigbour of self.matrix[idx]
-      # for the current angle.
-      angMat = numpy.roll(numpy.roll(numpy.roll(self.matrix, -a[0], 0), -a[1], 1), -a[2], 2) - self.matrix
-      if a[0] > 0:
-        angMat[-a[0]:, :, :] = padVal
-      elif a[0] < 0:
-        angMat[:-a[0], :, :] = padVal
+    with self.progressReporter(angles, desc='Calculate shifted matrices (GLDM)') as bar:
+      for a in bar:
+        # create shifted array (by angle), so that for an index idx, angMat[idx] is the neigbour of self.matrix[idx]
+        # for the current angle.
+        angMat = numpy.roll(numpy.roll(numpy.roll(self.matrix, -a[0], 0), -a[1], 1), -a[2], 2) - self.matrix
+        if a[0] > 0:
+          angMat[-a[0]:, :, :] = padVal
+        elif a[0] < 0:
+          angMat[:-a[0], :, :] = padVal
 
-      if a[1] > 0:
-        angMat[:, -a[1]:, :] = padVal
-      elif a[1] < 0:
-        angMat[:, :-a[1], :] = padVal
+        if a[1] > 0:
+          angMat[:, -a[1]:, :] = padVal
+        elif a[1] < 0:
+          angMat[:, :-a[1], :] = padVal
 
-      if a[2] > 0:
-        angMat[:, :, -a[2]:] = padVal
-      elif a[2] < 0:
-        angMat[:, :, :-a[2]] = padVal
+        if a[2] > 0:
+          angMat[:, :, -a[2]:] = padVal
+        elif a[2] < 0:
+          angMat[:, :, :-a[2]] = padVal
 
-      nanMask = numpy.isnan(angMat)
-      depMat[~nanMask] += (numpy.abs(angMat[~nanMask]) <= self.gldm_a)
-
-    if self.verbose: bar.close()
+        nanMask = numpy.isnan(angMat)
+        depMat[~nanMask] += (numpy.abs(angMat[~nanMask]) <= self.gldm_a)
 
     Nd = numpy.max(depMat)
     P_gldm = numpy.zeros((Ng, Nd + 1))
     grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
 
-    if self.verbose: bar = trange(len(grayLevels), desc='calculate GLDM')
-    for i in grayLevels:
-      if self.verbose: bar.update()
-      i_mat = (self.matrix == i)
-      for d in numpy.unique(depMat[i_mat]):
-        # By multiplying i_mat and depMat == d, a boolean area is obtained,
-        # where the number of elements that are true (1) is equal to the number of voxels
-        # with gray level i and dependence d.
-        P_gldm[int(i - 1), d] = numpy.sum(i_mat * (depMat == d))
-    if self.verbose: bar.close()
+    with self.progressReporter(grayLevels, desc='calculate GLDM') as bar:
+      for i in bar:
+        i_mat = (self.matrix == i)
+        for d in numpy.unique(depMat[i_mat]):
+          # By multiplying i_mat and depMat == d, a boolean area is obtained,
+          # where the number of elements that are true (1) is equal to the number of voxels
+          # with gray level i and dependence d.
+          P_gldm[int(i - 1), d] = numpy.sum(i_mat * (depMat == d))
 
     return P_gldm
 

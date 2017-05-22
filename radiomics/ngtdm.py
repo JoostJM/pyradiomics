@@ -112,31 +112,28 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     dataTemp = numpy.zeros(self.matrix.shape, dtype='float')
     countMat = numpy.zeros(self.matrix.shape, dtype='int')
 
-    if self.verbose: bar = trange(Nd - 1, desc='Calculate shifted matrices (NGTDM)')
-    for a_idx, a in enumerate(angles):
-      if self.verbose: bar.update()
-      # create shifted array (by angle), so that for an index idx, angMat[idx] is the neigbour of self.matrix[idx]
-      # for the current angle.
-      angMat = numpy.roll(numpy.roll(numpy.roll(self.matrix, -a[0], 0), -a[1], 1), -a[2], 2)
-      if a[0] > 0:
-        angMat[-a[0]:, :, :] = padVal
-      elif a[0] < 0:
-        angMat[:-a[0], :, :] = padVal
+    with self.progressReporter(angles, desc='Calculate shifted matrices (NGTDM)') as bar:
+      for a in bar:
+        # create shifted array (by angle), so that for an index idx, angMat[idx] is the neigbour of self.matrix[idx]
+        # for the current angle.
+        angMat = numpy.roll(numpy.roll(numpy.roll(self.matrix, -a[0], 0), -a[1], 1), -a[2], 2)
+        if a[0] > 0:
+          angMat[-a[0]:, :, :] = padVal
+        elif a[0] < 0:
+          angMat[:-a[0], :, :] = padVal
 
-      if a[1] > 0:
-        angMat[:, -a[1]:, :] = padVal
-      elif a[1] < 0:
-        angMat[:, :-a[1], :] = padVal
+        if a[1] > 0:
+          angMat[:, -a[1]:, :] = padVal
+        elif a[1] < 0:
+          angMat[:, :-a[1], :] = padVal
 
-      if a[2] > 0:
-        angMat[:, :, -a[2]:] = padVal
-      elif a[2] < 0:
-        angMat[:, :, :-a[2]] = padVal
-      nanmask = numpy.isnan(angMat)
-      dataTemp[~nanmask] += angMat[~nanmask]
-      countMat[~nanmask] += 1
-
-    if self.verbose: bar.close()
+        if a[2] > 0:
+          angMat[:, :, -a[2]:] = padVal
+        elif a[2] < 0:
+          angMat[:, :, :-a[2]] = padVal
+        nanmask = numpy.isnan(angMat)
+        dataTemp[~nanmask] += angMat[~nanmask]
+        countMat[~nanmask] += 1
 
     # Average neighbourhood is the dataTemp (which is the sum of gray levels of neighbours that are non-NaN) divided by
     # the countMat (which is the number of neighbours that are non-NaN)
@@ -154,14 +151,12 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     # element 1 = sum of the absolute differences (s_i),
     # element 2 = gray level (i)
     grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
-    if self.verbose: bar = trange(len(grayLevels), desc='Calculate NGTDM')
-    for i in grayLevels:
-      if self.verbose: bar.update()
-      if not numpy.isnan(i):
-        i_ind = numpy.where(self.matrix == i)
-        P_ngtdm[int(i - 1), 0] = len(i_ind[0])
-        P_ngtdm[int(i - 1), 1] = numpy.sum(dataTemp[i_ind])
-    if self.verbose: bar.close()
+    with self.progressReporter(grayLevels, desc='Calculate NGTDM') as bar:
+      for i in bar:
+        if not numpy.isnan(i):
+          i_ind = numpy.where(self.matrix == i)
+          P_ngtdm[int(i - 1), 0] = len(i_ind[0])
+          P_ngtdm[int(i - 1), 1] = numpy.sum(dataTemp[i_ind])
 
     # Fill in gray levels (needed as empty gray level slices will be deleted)
     P_ngtdm[:, 2] = numpy.arange(1, Ng + 1)
