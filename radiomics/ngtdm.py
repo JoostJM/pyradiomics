@@ -105,7 +105,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     self.matrix[(self.maskArray == 0)] = padVal
 
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    angles = imageoperations.generateAngles(size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
     Nd = len(angles)
 
@@ -171,7 +171,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
 
   def _calculateCMatrix(self):
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    angles = imageoperations.generateAngles(size, **self.kwargs)
     Ng = self.coefficients['Ng']
 
     P_ngtdm = radiomics.cMatrices.calculate_ngtdm(self.matrix, self.maskArray, angles, Ng)

@@ -82,7 +82,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     self.matrix[(self.maskArray != self.label)] = padVal
 
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    angles = imageoperations.generateAngles(size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
 
     depMat = numpy.zeros(self.matrix.shape, dtype='int')
@@ -127,7 +127,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
 
   def _calculateCMatrix(self):
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    angles = imageoperations.generateAngles(size, **self.kwargs)
     Ng = self.coefficients['Ng']
 
     P_gldm = radiomics.cMatrices.calculate_gldm(self.matrix, self.maskArray, angles, Ng, self.gldm_a)

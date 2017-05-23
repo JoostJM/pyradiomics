@@ -138,7 +138,10 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     P_gldzm[level, distance] = # occurrences.
     """
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
+    angles = imageoperations.generateAngles(size,
+                                            force2Dextraction=self.kwargs.get('force2D', False),
+                                            force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
     distMap = self._calculateDistanceMap()
 
@@ -198,7 +201,10 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     Np = self.coefficients['Np']
 
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
+    angles = imageoperations.generateAngles(size,
+                                            force2Dextraction=self.kwargs.get('force2D', False),
+                                            force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
     distMap = self._calculateDistanceMap()
     Nd = int(numpy.max(distMap))
