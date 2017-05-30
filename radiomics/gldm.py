@@ -63,16 +63,14 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     # binning
     self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
     self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
+    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
 
     if radiomics.cMatsEnabled:
       self.P_gldm = self._calculateCMatrix()
     else:
       self.P_gldm = self._calculateMatrix()
 
-    self._calculateCoefficients()
-
   def _calculateMatrix(self):
-    Ng = self.coefficients['Ng']
 
     self.matrix = self.matrix.astype('float')
 
@@ -109,19 +107,29 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
         nanMask = numpy.isnan(angMat)
         depMat[~nanMask] += (numpy.abs(angMat[~nanMask]) <= self.gldm_a)
 
-    Nd = numpy.max(depMat)
-    P_gldm = numpy.zeros((Ng, Nd + 1))
-    grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
+    grayLevels = self.coefficients['grayLevels']
+    dependenceSizes = numpy.unique(depMat[self.matrixCoordinates])
+    P_gldm = numpy.zeros((len(grayLevels), len(dependenceSizes)))
 
     with self.progressReporter(grayLevels, desc='calculate GLDM') as bar:
-      for i in bar:
+      for i_idx, i in enumerate(bar):
         i_mat = (self.matrix == i)
-        for d in numpy.unique(depMat[i_mat]):
+        for d_idx, d in enumerate(dependenceSizes):
           # By multiplying i_mat and depMat == d, a boolean area is obtained,
           # where the number of elements that are true (1) is equal to the number of voxels
           # with gray level i and dependence d.
-          P_gldm[int(i - 1), d] = numpy.sum(i_mat * (depMat == d))
+          P_gldm[i_idx, d_idx] = numpy.sum(i_mat * (depMat == d))
 
+    sumP_gldm = numpy.sum(P_gldm, (0, 1))
+
+    pd = numpy.sum(P_gldm, 0)
+    pg = numpy.sum(P_gldm, 1)
+
+    self.coefficients['ivector'] = grayLevels
+    self.coefficients['jvector'] = dependenceSizes
+    self.coefficients['sumP_gldm'] = sumP_gldm
+    self.coefficients['pd'] = pd
+    self.coefficients['pg'] = pg
     return P_gldm
 
   def _calculateCMatrix(self):
@@ -131,28 +139,29 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
 
     P_gldm = radiomics.cMatrices.calculate_gldm(self.matrix, self.maskArray, angles, Ng, self.gldm_a)
 
-    # Crop gray-level axis of GLDM matrix to between minimum and maximum observed gray-levels
-    # Crop dependence axis of GLDM matrix up to maximum observed dependence
-    P_gldm_bounds = numpy.argwhere(P_gldm)
-    (xstart, ystart), (xstop, ystop) = P_gldm_bounds.min(0), P_gldm_bounds.max(0) + 1
+    jvector = numpy.arange(1, P_gldm.shape[1] + 1, dtype='float64')
 
-    return P_gldm[xstart:xstop, :ystop]
+    # Delete rows and columns that specify gray levels not present in the ROI
+    sumP_gldm = numpy.sum(P_gldm)
+    pd = numpy.sum(P_gldm, 0)
+    pg = numpy.sum(P_gldm, 1)
 
-  def _calculateCoefficients(self):
+    P_gldm = numpy.delete(P_gldm, numpy.where(pg == 0), 0)
+    P_gldm = numpy.delete(P_gldm, numpy.where(pd == 0), 1)
 
-    sumP_gldm = numpy.sum(self.P_gldm, (0, 1))
+    jvector = numpy.delete(jvector, numpy.where(pd == 0))
 
-    pd = numpy.sum(self.P_gldm, 0)
-    pg = numpy.sum(self.P_gldm, 1)
-
-    ivector = numpy.arange(1, self.P_gldm.shape[0] + 1, dtype=numpy.float64)
-    jvector = numpy.arange(1, self.P_gldm.shape[1] + 1, dtype=numpy.float64)
+    pg = numpy.delete(pg, numpy.where(pg == 0))
+    pd = numpy.delete(pd, numpy.where(pd == 0))
 
     self.coefficients['sumP_gldm'] = sumP_gldm
     self.coefficients['pd'] = pd
     self.coefficients['pg'] = pg
-    self.coefficients['ivector'] = ivector
+
+    self.coefficients['ivector'] = self.coefficients['grayLevels']
     self.coefficients['jvector'] = jvector
+
+    return P_gldm
 
   def getSmallDependenceEmphasisFeatureValue(self):
     r"""
