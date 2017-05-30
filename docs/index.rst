@@ -38,6 +38,7 @@ Table of Contents
    features
    developers
    FAQs <faq>
+   changes
 
 Feature Classes
 ---------------
@@ -89,11 +90,7 @@ and filters, thereby enabling fully reproducible feature extraction. For more in
 * numpy (Feature calculation)
 * PyWavelets (Wavelet filter)
 * pykwalify (Enabling yaml parameters file checking)
-* tqdm (Progressbar)
 * six (Python 3 Compatibility)
-* sphinx (Generating documentation)
-* sphinx_rtd_theme (Template for documentation)
-* nose-parameterized (Testing)
 
 See also the `requirements file <https://github.com/Radiomics/pyradiomics/blob/master/requirements.txt>`_.
 

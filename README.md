@@ -5,7 +5,7 @@
 
 [![Travis CI](https://travis-ci.org/Radiomics/pyradiomics.svg?branch=master)](https://travis-ci.org/Radiomics/pyradiomics)
 
-# pyradiomics v1.1.1
+# pyradiomics v1.2.0
 
 ## Radiomics feature extraction in Python
 
@@ -103,11 +103,7 @@ extension for 3D Slicer, available [here](https://github.com/Radiomics/SlicerRad
  - numpy (Feature calculation)
  - PyWavelets (Wavelet filter)
  - pykwalify (Enabling yaml parameters file checking)
- - tqdm (Progressbar)
  - six (Python 3 Compatibility)
- - sphinx (Generating documentation)
- - sphinx_rtd_theme (Template for documentation)
- - nose-parameterized (Testing)
 
 See also the [requirements file](requirements.txt).
 
