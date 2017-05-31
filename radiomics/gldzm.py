@@ -1,6 +1,5 @@
 import numpy
 import SimpleITK as sitk
-from tqdm import trange
 
 import radiomics
 from radiomics import base, imageoperations

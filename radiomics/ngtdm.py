@@ -1,5 +1,4 @@
 import numpy
-from tqdm import trange
 
 import radiomics
 from radiomics import base, imageoperations
