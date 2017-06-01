@@ -50,6 +50,7 @@ class RadiomicsFeaturesBase(object):
     self.kwargs = kwargs
     self.binWidth = kwargs.get('binWidth', 25)
     self.label = kwargs.get('label', 1)
+    self.voxelWise = kwargs.get('voxelWise', False)
 
     self.coefficients = {}
 
@@ -67,16 +68,51 @@ class RadiomicsFeaturesBase(object):
 
   def _initLesionWiseCalculation(self):
     self.imageArray = sitk.GetArrayFromImage(self.inputImage)
-    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
+    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label)
 
-    self.ROICoordinates = numpy.where(self.maskArray != 0)
+    self.maskCoordinates = numpy.where(self.maskArray != 0)
+    self.size = numpy.max(self.maskCoordinates, 1) - numpy.min(self.maskCoordinates, 1) + 1
+
+  def _initVoxelWiseCalculation(self):
+    kernelDistance = self.kwargs.get('kernelDistance', 1)
+    masked = self.kwargs.get('maskedKernel', True)
+
+    self.imageArray = sitk.GetArrayFromImage(self.inputImage)
+    self.ROIArray = (sitk.GetArrayFromImage(self.inputMask) == self.label)
+
+    # Mask Coordinates and kernel coordinates define voxels that MAY be assessed (depending on the type of border
+    # handling, this is either all voxels in the ROI (masked kernel) or all voxels in the image (full kernel)
+    # Mask coordinates will change for each calculated voxel, but kernel Coordinates will remain constant
+    if masked:  # maskArray must be initialized depending on how the borders are handled (masked or not)
+      self.maskArray = self.ROIArray.copy()  # will exclude voxels from outside the ROI
+      maskCoordinates = numpy.where(self.maskArray != 0)
+      self.ROICoordinates = set(zip(*maskCoordinates))  # Voxels in the ROI, i.e. voxels to process
+    else:
+      self.maskArray = numpy.ones(self.ROIArray.shape, dtype='bool')  # include all voxels inside kernel
+      maskCoordinates = numpy.where(self.maskArray != 0)
+      self.ROICoordinates = set(zip(*numpy.where(self.ROIArray != 0)))  # Voxels in the ROI, i.e. voxels to process
+
+    self.kernelCoordinates = set(zip(*maskCoordinates))
+    self.size = numpy.max(maskCoordinates, 1) - numpy.min(maskCoordinates, 1) + 1
+
+    # Generate Kernel
+    distances = six.moves.range(1, kernelDistance + 1)
+    self.kernel = radiomics.imageoperations.generateAngles(self.size,
+                                                           distances=distances,
+                                                           force2Dextraction=self.kwargs.get('force2D', False),
+                                                           force2Ddimension=self.kwargs.get('force2Ddimension', 0))
+    self.kernel = numpy.concatenate(([(0, 0, 0)], self.kernel, self.kernel * -1))
+    self.size = numpy.max(self.kernel, 0) - numpy.min(self.kernel, 0) + 1
+
+  def _initCalculation(self):
+    pass
 
   def _applyBinning(self):
       self.matrix, self.binEdges = radiomics.imageoperations.binImage(self.binWidth,
                                                                       self.imageArray,
-                                                                      self.ROICoordinates)
-      self.coefficients['Ng'] = int(numpy.max(self.matrix[self.ROICoordinates]))  # max gray level in the ROI
-      self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.ROICoordinates])
+                                                                      self.maskArray)
+      self.coefficients['Ng'] = int(numpy.max(self.matrix[self.maskArray]))  # max gray level in the ROI
+      self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.maskArray])
 
   def enableFeatureByName(self, featureName, enable=True):
     """
@@ -133,3 +169,36 @@ class RadiomicsFeaturesBase(object):
         except Exception:
           self.featureValues[feature] = numpy.nan
           self.logger.error('FAILED: %s', traceback.format_exc())
+
+  def calculateSingleVoxel(self, index):
+    # index = (0, 0, 0)
+    # Apply Kernel
+    # temp = [tuple(idx) for idx in (self.kernel + index)]
+    kernelCoordinates = set(tuple(idx) for idx in (self.kernel + index))
+    self.maskCoordinates = zip(*(self.ROICoordinates.intersection(kernelCoordinates)))
+    if len(self.maskCoordinates[0]) <= 1:
+      return
+
+    self.maskArray[:] = False
+    self.maskArray[self.maskCoordinates] = True
+
+    self._initCalculation()
+
+    # Calculate features in voxel
+    for feature, enabled in six.iteritems(self.enabledFeatures):
+      if enabled:
+        try:
+          # Use getattr to get the feature calculation methods, then use '()' to evaluate those methods
+          self.featureValues[feature][index] = getattr(self, 'get%sFeatureValue' % feature)()
+        except Exception:
+          self.featureValues[feature][index] = numpy.nan
+          self.logger.error('FAILED: %s', traceback.format_exc())
+
+  def calculateVoxels(self):
+    for feature, enabled in six.iteritems(self.enabledFeatures):
+      if enabled:
+        self.featureValues[feature] = numpy.zeros(self.ROIArray.shape, dtype='float')
+
+    with self.progressReporter(self.ROICoordinates, 'Calculating voxels') as bar:
+      for vox_idx in bar:
+        self.calculateSingleVoxel(vox_idx)

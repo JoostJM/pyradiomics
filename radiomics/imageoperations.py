@@ -53,7 +53,7 @@ def getBinEdges(binwidth, parameterValues):
   return binEdges  # numpy.histogram(parameterValues, bins=binedges)
 
 
-def binImage(binwidth, parameterMatrix, parameterMatrixCoordinates):
+def binImage(binwidth, parameterMatrix, parameterMatrixMask):
   r"""
   Discretizes the parameterMatrix (matrix representation of the gray levels in the ROI) using the binEdges calculated
   using :py:func:`getBinEdges`. Only voxels defined by parameterMatrixCoordinates (defining the segmentation) are used
@@ -79,9 +79,9 @@ def binImage(binwidth, parameterMatrix, parameterMatrixCoordinates):
   global logger
   logger.debug('Discretizing gray levels inside ROI')
 
-  binEdges = getBinEdges(binwidth, parameterMatrix[parameterMatrixCoordinates])
+  binEdges = getBinEdges(binwidth, parameterMatrix[parameterMatrixMask])
 
-  parameterMatrix[parameterMatrixCoordinates] = numpy.digitize(parameterMatrix[parameterMatrixCoordinates], binEdges)
+  parameterMatrix[parameterMatrixMask] = numpy.digitize(parameterMatrix[parameterMatrixMask], binEdges)
 
   return parameterMatrix, binEdges
 

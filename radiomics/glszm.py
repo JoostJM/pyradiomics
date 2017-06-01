@@ -59,14 +59,19 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
 
     self.P_glszm = None
 
-    self._initLesionWiseCalculation()
+    if self.voxelWise:
+      self._initVoxelWiseCalculation()
+      self._applyBinning()
+    else:
+      self._initLesionWiseCalculation()
+      self._applyBinning()
+      self._initCalculation()
+      self.logger.debug('Calculated GLSZM with shape %s', self.P_glszm.shape)
 
-  def _initLesionWiseCalculation(self):
-    super(RadiomicsGLSZM, self)._initLesionWiseCalculation()
+    self.logger.debug('Feature class initialized')
 
-    self._applyBinning()
-
-    self.coefficients['Np'] = len(self.ROICoordinates[0])
+  def _initCalculation(self):
+    self.coefficients['Np'] = len(self.maskCoordinates[0])
 
     if cMatsEnabled():
       self.P_glszm = self._calculateCMatrix()
@@ -74,8 +79,6 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
       self.P_glszm = self._calculateMatrix()
 
     self._calculateCoefficients()
-
-    self.logger.debug('Feature class initialized, calculated GLSZM with shape %s', self.P_glszm.shape)
 
   def _calculateMatrix(self):
     """
@@ -87,9 +90,8 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
     self.logger.debug('Calculating GLSZM matrix in Python')
 
     Np = self.coefficients['Np']
-    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
@@ -105,7 +107,7 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
       # Iterate over all gray levels in the image
       for i_idx, i in enumerate(bar):
         ind = zip(*numpy.where(self.matrix == i))
-        ind = list(set(ind).intersection(set(zip(*self.ROICoordinates))))
+        ind = list(set(ind).intersection(set(zip(*self.maskCoordinates))))
 
         while ind:  # check if ind is not empty: unprocessed regions for current gray level
           # Pop first coordinate of an unprocessed zone, start new stack
@@ -145,9 +147,8 @@ class RadiomicsGLSZM(base.RadiomicsFeaturesBase):
   def _calculateCMatrix(self):
     self.logger.debug('Calculating GLSZM matrix in C')
 
-    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
     Ng = self.coefficients['Ng']

@@ -78,29 +78,28 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
 
     self.weightingNorm = kwargs.get('weightingNorm', None)  # manhattan, euclidean, infinity
 
-    self.coefficients = {}
     self.P_glrlm = None
 
-    self._initLesionWiseCalculation()
+    if self.voxelWise:
+      self._initVoxelWiseCalculation()
+      self._applyBinning()
+    else:
+      self._initLesionWiseCalculation()
+      self._applyBinning()
+      self._initCalculation()
+      self.logger.debug('Calculated GLRLM with shape %s', self.P_glrlm.shape)
 
-  def _initLesionWiseCalculation(self):
-    super(RadiomicsGLRLM, self)._initLesionWiseCalculation()
+    self.logger.debug('Feature class initialized')
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.imageArray, self.ROICoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.ROICoordinates]))  # max gray level in the ROI
+  def _initCalculation(self):
     self.coefficients['Nr'] = numpy.max(self.matrix.shape)
-    self.coefficients['Np'] = len(self.ROICoordinates[0])
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.ROICoordinates])
-
+    self.coefficients['Np'] = len(self.maskCoordinates[0])
     if cMatsEnabled():
       self.P_glrlm = self._calculateCMatrix()
     else:
       self.P_glrlm = self._calculateMatrix()
 
     self._calculateCoefficients()
-
-    self.logger.debug('Feature class initialized, calculated GLRLM with shape %s', self.P_glrlm.shape)
 
   def _calculateMatrix(self):
     self.logger.debug('Calculating GLRLM matrix in Python')
@@ -113,9 +112,8 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
 
     matrixDiagonals = []
 
-    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
@@ -175,9 +173,8 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
     Ng = self.coefficients['Ng']
     Nr = self.coefficients['Nr']
 
-    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 

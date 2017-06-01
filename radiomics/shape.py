@@ -21,6 +21,7 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     super(RadiomicsShape, self).__init__(inputImage, inputMask, **kwargs)
 
     self._initLesionWiseCalculation()
+    self.logger.debug('Feature class initialized')
 
   def _initLesionWiseCalculation(self):
 
@@ -49,9 +50,9 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     self.inputMask = cpif.Execute(self.inputMask)
 
     # Reassign self.maskArray using the now-padded self.inputMask and make it binary
-    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
-    self.ROICoordinates = numpy.where(self.maskArray != 0)
-
+    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label)
+    self.maskCoordinates = numpy.where(self.maskArray != 0)
+    self.size = numpy.max(self.maskCoordinates, 1) - numpy.min(self.maskCoordinates, 1) + 1
     self.logger.debug('Pre-calculate Volume and Surface Area')
 
     # Volume and Surface Area are pre-calculated
@@ -63,10 +64,10 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
 
     self.diameters = None  # Do not precompute diameters
 
-    self.logger.debug('Feature class initialized')
-
   def _calculateSurfaceArea(self):
     self.logger.debug('Calculating Surface Area in Python')
+
+    self.maskArray = self.maskArray.astype('int')
 
     # define relative locations of the 8 voxels of a sampling cube
     gridAngles = numpy.array([(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0),
@@ -74,10 +75,10 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     # instantiate lookup tables
     edgeTable, triTable = self._getMarchingTables()
 
-    minBounds = numpy.array([numpy.min(self.ROICoordinates[0]), numpy.min(self.ROICoordinates[1]),
-                             numpy.min(self.ROICoordinates[2])])
-    maxBounds = numpy.array([numpy.max(self.ROICoordinates[0]), numpy.max(self.ROICoordinates[1]),
-                             numpy.max(self.ROICoordinates[2])])
+    minBounds = numpy.array([numpy.min(self.maskCoordinates[0]), numpy.min(self.maskCoordinates[1]),
+                             numpy.min(self.maskCoordinates[2])])
+    maxBounds = numpy.array([numpy.max(self.maskCoordinates[0]), numpy.max(self.maskCoordinates[1]),
+                             numpy.max(self.maskCoordinates[2])])
     minBounds = numpy.where(minBounds < 1, 1, minBounds)
     maxBounds = numpy.where(maxBounds > self.maskArray.shape, self.maskArray.shape, maxBounds)
 
@@ -153,9 +154,8 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     3. Maximum 3D diameter
     """
     self.logger.debug('Calculating Maximum 3D diameter in C')
-    Ns = len(self.ROICoordinates[0])
-    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    Ns = len(self.maskCoordinates[0])
+    angles = imageoperations.generateAngles(self.size)
     return cShape.calculate_diameter(self.maskArray, self.pixelSpacing, angles, Ns)
 
   def getVolumeFeatureValue(self):
