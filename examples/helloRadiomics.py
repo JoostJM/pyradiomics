@@ -19,7 +19,7 @@ def tqdmProgressbar():
   N.B. This function will only work if the 'click' package is installed (not included in the PyRadiomics requirements)
   """
   global extractor
-  extractor.kwargs['enableCExtensions'] = False
+  extractor.settings['enableCExtensions'] = False
   # Enable the GLCM class to show the progress bar
   extractor.enableFeatureClassByName('glcm')
 
@@ -42,7 +42,7 @@ def clickProgressbar():
   """
   global extractor
 
-  extractor.kwargs['enableCExtensions'] = False
+  extractor.settings['enableCExtensions'] = False
   # Enable the GLCM class to show the progress bar
   extractor.enableFeatureClassByName('glcm')
 
