@@ -87,6 +87,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
     self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
     self.coefficients['Np'] = self.targetVoxelArray.size
+    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
 
     if radiomics.cMatsEnabled:
       self.P_ngtdm = self._calculateCMatrix()
@@ -106,7 +107,6 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
-    Nd = len(angles)
 
     dataTemp = numpy.zeros(self.matrix.shape, dtype='float')
     countMat = numpy.zeros(self.matrix.shape, dtype='int')
@@ -149,7 +149,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     # element 0 = probability of gray level (p_i),
     # element 1 = sum of the absolute differences (s_i),
     # element 2 = gray level (i)
-    grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
+    grayLevels = self.coefficients['grayLevels']
     with self.progressReporter(grayLevels, desc='Calculate NGTDM') as bar:
       for i in bar:
         if not numpy.isnan(i):

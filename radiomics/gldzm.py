@@ -115,6 +115,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
     self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
     self.coefficients['Np'] = self.targetVoxelArray.size
+    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
 
     if radiomics.cMatsEnabled:
       self.P_gldzm = self._calculateCMatrix()
@@ -144,14 +145,14 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
 
     distMap = self._calculateDistanceMap()
 
-    # Empty GLDZ matrix
-    P_gldzm = numpy.zeros((self.coefficients['Ng'], int(numpy.max(distMap))))
-
     # Iterate over all gray levels in the image
     grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
 
+    # Empty GLDZ matrix
+    P_gldzm = numpy.zeros((len(grayLevels), int(numpy.max(distMap))))
+
     with self.progressReporter(grayLevels, desc='calculate GLDZM') as bar:
-      for i in bar:
+      for i_idx, i in enumerate(bar):
 
         ind = zip(*numpy.where(self.matrix == i))
         ind = list(set(ind).intersection(set(zip(*self.matrixCoordinates))))
@@ -187,13 +188,9 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
               minDistance = distMap[ind_node]
 
           # Update the gray level distance zone matrix, minDistance starts at 0 (voxels on the edge of the ROI.
-          P_gldzm[int(i - 1), int(minDistance-1)] += 1
+          P_gldzm[i_idx, int(minDistance-1)] += 1
 
-    # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
-    # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
-    P_gldzm_bounds = numpy.argwhere(P_gldzm)
-    (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
-    return P_gldzm[xstart:xstop, :ystop]
+    return P_gldzm
 
   def _calculateCMatrix(self):
     Ng = self.coefficients['Ng']
@@ -210,11 +207,15 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
 
     P_gldzm = radiomics.cMatrices.calculate_gldzm(self.matrix, self.maskArray, distMap, angles, Ng, Nd, Np)
 
-    # Crop gray-level axis of GLDZM matrix to between minimum and maximum observed gray-levels
-    # Crop distance-zone axis of GLDZM matrix up to maximum observed distance
-    P_gldzm_bounds = numpy.argwhere(P_gldzm)
-    (xstart, ystart), (xstop, ystop) = P_gldzm_bounds.min(0), P_gldzm_bounds.max(0) + 1
-    return P_gldzm[xstart:xstop, :ystop]
+    # Delete rows that specify gray levels not present in the ROI
+    Ng = self.coefficients['Ng']
+    NgVector = range(1, Ng + 1)  # All possible gray values
+    GrayLevels = self.coefficients['grayLevels']  # Gray values present in ROI
+    emptyGrayLevels = numpy.array(list(set(NgVector) - set(GrayLevels)))  # Gray values NOT present in ROI
+
+    P_gldzm = numpy.delete(P_gldzm, emptyGrayLevels - 1, 0)
+
+    return P_gldzm
 
   def _calculateCoefficients(self):
     sumP_gldzm = numpy.sum(self.P_gldzm, (0, 1))
@@ -226,8 +227,14 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     pd = numpy.sum(self.P_gldzm, 0)
     pg = numpy.sum(self.P_gldzm, 1)
 
-    ivector = numpy.arange(1, self.P_gldzm.shape[0] + 1, dtype=numpy.float64)
+    ivector = self.coefficients['grayLevels']
     jvector = numpy.arange(1, self.P_gldzm.shape[1] + 1, dtype=numpy.float64)  # ensure distances start at 1
+
+    # Delete columns that specify zone distances not present in the ROI
+    emptyDistances = numpy.where(pd == 0)
+    self.P_gldzm = numpy.delete(self.P_gldzm, emptyDistances, 1)
+    jvector = numpy.delete(jvector, emptyDistances)
+    pd = numpy.delete(pd, emptyDistances)
 
     self.coefficients['sumP_gldzm'] = sumP_gldzm
     self.coefficients['pd'] = pd
