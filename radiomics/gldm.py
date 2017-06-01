@@ -57,13 +57,14 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
 
     self.gldm_a = kwargs.get('gldm_a', 0)
 
-    self.coefficients = {}
     self.P_gldm = None
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    self._initLesionWiseCalculation()
+
+  def _initLesionWiseCalculation(self):
+    super(RadiomicsGLDM, self)._initLesionWiseCalculation()
+
+    self._applyBinning()
 
     if radiomics.cMatsEnabled:
       self.P_gldm = self._calculateCMatrix()
@@ -76,9 +77,9 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
 
     # Set voxels outside delineation to padding value
     padVal = numpy.nan
-    self.matrix[(self.maskArray != self.label)] = padVal
+    self.matrix[(self.maskArray == 0)] = padVal
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
 
@@ -108,7 +109,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
         depMat[~nanMask] += (numpy.abs(angMat[~nanMask]) <= self.gldm_a)
 
     grayLevels = self.coefficients['grayLevels']
-    dependenceSizes = numpy.unique(depMat[self.matrixCoordinates])
+    dependenceSizes = numpy.unique(depMat[self.ROICoordinates])
     P_gldm = numpy.zeros((len(grayLevels), len(dependenceSizes)))
 
     with self.progressReporter(grayLevels, desc='calculate GLDM') as bar:
@@ -133,7 +134,7 @@ class RadiomicsGLDM(base.RadiomicsFeaturesBase):
     return P_gldm
 
   def _calculateCMatrix(self):
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     Ng = self.coefficients['Ng']
 

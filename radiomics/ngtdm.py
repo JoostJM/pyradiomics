@@ -81,13 +81,16 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
   def __init__(self, inputImage, inputMask, **kwargs):
     super(RadiomicsNGTDM, self).__init__(inputImage, inputMask, **kwargs)
 
-    self.coefficients = {}
+    self.P_ngtdm = None
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['Np'] = self.targetVoxelArray.size
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    self._initLesionWiseCalculation()
+
+  def _initLesionWiseCalculation(self):
+    super(RadiomicsNGTDM, self)._initLesionWiseCalculation()
+
+    self._applyBinning()
+
+    self.coefficients['Np'] = len(self.ROICoordinates[0])
 
     if radiomics.cMatsEnabled:
       self.P_ngtdm = self._calculateCMatrix()
@@ -104,7 +107,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     padVal = numpy.nan
     self.matrix[(self.maskArray == 0)] = padVal
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
 
@@ -169,7 +172,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     return P_ngtdm
 
   def _calculateCMatrix(self):
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     Ng = self.coefficients['Ng']
 

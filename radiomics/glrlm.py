@@ -79,14 +79,19 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
     self.weightingNorm = kwargs.get('weightingNorm', None)  # manhattan, euclidean, infinity
 
     self.coefficients = {}
-    self.P_glrlm = {}
+    self.P_glrlm = None
+
+    self._initLesionWiseCalculation()
+
+  def _initLesionWiseCalculation(self):
+    super(RadiomicsGLRLM, self)._initLesionWiseCalculation()
 
     # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
+    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.imageArray, self.ROICoordinates)
+    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.ROICoordinates]))  # max gray level in the ROI
     self.coefficients['Nr'] = numpy.max(self.matrix.shape)
-    self.coefficients['Np'] = self.targetVoxelArray.size
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    self.coefficients['Np'] = len(self.ROICoordinates[0])
+    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.ROICoordinates])
 
     if cMatsEnabled():
       self.P_glrlm = self._calculateCMatrix()
@@ -108,7 +113,7 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
 
     matrixDiagonals = []
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
     angles = imageoperations.generateAngles(size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
@@ -170,7 +175,7 @@ class RadiomicsGLRLM(base.RadiomicsFeaturesBase):
     Ng = self.coefficients['Ng']
     Nr = self.coefficients['Nr']
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
     angles = imageoperations.generateAngles(size,
                                             force2Dextraction=self.kwargs.get('force2D', False),

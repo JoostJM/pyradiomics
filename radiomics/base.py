@@ -51,6 +51,8 @@ class RadiomicsFeaturesBase(object):
     self.binWidth = kwargs.get('binWidth', 25)
     self.label = kwargs.get('label', 1)
 
+    self.coefficients = {}
+
     # all features are disabled by default
     self.disableAllFeatures()
 
@@ -63,13 +65,18 @@ class RadiomicsFeaturesBase(object):
       self.logger.warning('Missing input image or mask')
       return
 
+  def _initLesionWiseCalculation(self):
     self.imageArray = sitk.GetArrayFromImage(self.inputImage)
     self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
 
-    self.matrix = self.imageArray.astype('float')
-    self.matrixCoordinates = numpy.where(self.maskArray != 0)
+    self.ROICoordinates = numpy.where(self.maskArray != 0)
 
-    self.targetVoxelArray = self.matrix[self.matrixCoordinates]
+  def _applyBinning(self):
+      self.matrix, self.binEdges = radiomics.imageoperations.binImage(self.binWidth,
+                                                                      self.imageArray,
+                                                                      self.ROICoordinates)
+      self.coefficients['Ng'] = int(numpy.max(self.matrix[self.ROICoordinates]))  # max gray level in the ROI
+      self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.ROICoordinates])
 
   def enableFeatureByName(self, featureName, enable=True):
     """

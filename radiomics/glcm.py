@@ -102,13 +102,14 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     self.symmetricalGLCM = kwargs.get('symmetricalGLCM', True)
     self.weightingNorm = kwargs.get('weightingNorm', None)  # manhattan, euclidean, infinity
 
-    self.coefficients = {}
-    self.P_glcm = {}
+    self.P_glcm = None
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    self._initLesionWiseCalculation()
+
+  def _initLesionWiseCalculation(self):
+    super(RadiomicsGLCM, self)._initLesionWiseCalculation()
+
+    self._applyBinning()
 
     if cMatsEnabled():
       self.P_glcm = self._calculateCMatrix()
@@ -131,11 +132,10 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     # Exclude voxels outside segmentation, due to binning, no negative values will be encountered inside the mask
     self.matrix[self.maskArray == 0] = -1
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
 
     grayLevels = self.coefficients['grayLevels']
-    grayLevel_idx = range(0, len(grayLevels))
 
     P_glcm = numpy.zeros((len(grayLevels), len(grayLevels), int(angles.shape[0])), dtype='float64')
 
@@ -169,7 +169,7 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
   def _calculateCMatrix(self):
     self.logger.debug('Calculating GLCM matrix in C')
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
+    size = numpy.max(self.ROICoordinates, 1) - numpy.min(self.ROICoordinates, 1) + 1
     angles = imageoperations.generateAngles(size, **self.kwargs)
     Ng = self.coefficients['Ng']
 
@@ -246,9 +246,9 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     Ng = self.coefficients['Ng']
     eps = numpy.spacing(1)
 
-    NgVector = self.coefficients['grayLevels']
+    NgVector = self.coefficients['grayLevels'].astype('float')
     # shape = (Ng, Ng)
-    i, j = numpy.meshgrid(NgVector, NgVector, indexing='ij')
+    i, j = numpy.meshgrid(NgVector, NgVector, indexing='ij', sparse=True)
 
     # shape = (2*Ng-1)
     kValuesSum = numpy.arange(2, (Ng * 2) + 1)
