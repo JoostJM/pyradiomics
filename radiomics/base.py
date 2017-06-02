@@ -202,3 +202,9 @@ class RadiomicsFeaturesBase(object):
     with self.progressReporter(self.ROICoordinates, 'Calculating voxels') as bar:
       for vox_idx in bar:
         self.calculateSingleVoxel(vox_idx)
+
+    # Convert results to simple ITK image objects
+    for feature, enabled in six.iteritems(self.enabledFeatures):
+      if enabled:
+        self.featureValues[feature] = sitk.GetImageFromArray(self.featureValues[feature])
+        self.featureValues[feature].CopyInformation(self.inputImage)
