@@ -75,7 +75,7 @@ Gray Level Run Length Matrix (GLRLM) Features
 
 .. _radiomics-ngtdm-label:
 
-Neighboring Gray Tone Difference Matrix (GLDZM) Features
+Neighboring Gray Tone Difference Matrix (NGTDM) Features
 --------------------------------------------------------
 
 .. automodule:: radiomics.ngtdm
