@@ -1,7 +1,6 @@
 import numpy
 
-import radiomics
-from radiomics import base, imageoperations
+from radiomics import base, cMatrices, cMatsEnabled, imageoperations
 
 
 class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
@@ -81,15 +80,22 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
   def __init__(self, inputImage, inputMask, **kwargs):
     super(RadiomicsNGTDM, self).__init__(inputImage, inputMask, **kwargs)
 
-    self.coefficients = {}
+    self.P_ngtdm = None
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['Np'] = self.targetVoxelArray.size
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    if self.voxelWise:
+      self._initVoxelWiseCalculation()
+      self._applyBinning()
+    else:
+      self._initLesionWiseCalculation()
+      self._applyBinning()
+      self._initCalculation()
 
-    if radiomics.cMatsEnabled:
+    self.logger.debug('Feature class initialized')
+
+  def _initCalculation(self):
+    self.coefficients['Np'] = len(self.maskCoordinates[0])
+
+    if cMatsEnabled:
       self.P_ngtdm = self._calculateCMatrix()
     else:
       self.P_ngtdm = self._calculateMatrix()
@@ -104,8 +110,7 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     padVal = numpy.nan
     self.matrix[(self.maskArray == 0)] = padVal
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size, **self.kwargs)
+    angles = imageoperations.generateAngles(self.size, **self.kwargs)
     angles = numpy.concatenate((angles, angles * -1))
 
     dataTemp = numpy.zeros(self.matrix.shape, dtype='float')
@@ -169,11 +174,10 @@ class RadiomicsNGTDM(base.RadiomicsFeaturesBase):
     return P_ngtdm
 
   def _calculateCMatrix(self):
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size, **self.kwargs)
+    angles = imageoperations.generateAngles(self.size, **self.kwargs)
     Ng = self.coefficients['Ng']
 
-    P_ngtdm = radiomics.cMatrices.calculate_ngtdm(self.matrix, self.maskArray, angles, Ng)
+    P_ngtdm = cMatrices.calculate_ngtdm(self.matrix, self.maskArray, angles, Ng)
 
     # Delete empty grey levels
     P_ngtdm = numpy.delete(P_ngtdm, numpy.where(P_ngtdm[:, 0] == 0), 0)

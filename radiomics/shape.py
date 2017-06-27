@@ -20,7 +20,12 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
   def __init__(self, inputImage, inputMask, **kwargs):
     super(RadiomicsShape, self).__init__(inputImage, inputMask, **kwargs)
 
-    self.pixelSpacing = numpy.array(inputImage.GetSpacing()[::-1])
+    self._initLesionWiseCalculation()
+    self.logger.debug('Feature class initialized')
+
+  def _initLesionWiseCalculation(self):
+
+    self.pixelSpacing = numpy.array(self.inputImage.GetSpacing()[::-1])
 
     # Pad inputMask to prevent index-out-of-range errors
     self.logger.debug('Padding the mask with 0s')
@@ -39,15 +44,15 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     self.inputMask = cpif.Execute(self.inputMask)
 
     # Reassign self.maskArray using the now-padded self.inputMask and make it binary
-    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
-    self.matrixCoordinates = numpy.where(self.maskArray != 0)
-
+    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label)
+    self.maskCoordinates = numpy.where(self.maskArray != 0)
+    self.size = numpy.max(self.maskCoordinates, 1) - numpy.min(self.maskCoordinates, 1) + 1
     self.logger.debug('Pre-calculate Volume, Surface Area and Eigenvalues')
 
     # Volume, Surface Area and eigenvalues are pre-calculated
     # Compute volume
     z, x, y = self.pixelSpacing
-    Np = len(self.matrixCoordinates[0])
+    Np = len(self.maskCoordinates[0])
     self.Volume = Np * (z * x * y)
 
     # Compute Surface Area
@@ -57,7 +62,7 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
       self.SurfaceArea = self._calculateSurfaceArea()
 
     # Compute eigenvalues and -vectors
-    coordinates = numpy.array(self.matrixCoordinates, dtype='int').transpose((1, 0))  # Transpose equivalent to zip(*a)
+    coordinates = numpy.array(self.maskCoordinates, dtype='int').transpose((1, 0))  # Transpose equivalent to zip(*a)
     physicalCoordinates = [self.inputMask.TransformIndexToPhysicalPoint((idx.tolist())[::-1]) for idx in coordinates]
     physicalCoordinates -= numpy.mean(physicalCoordinates, axis=0)  # Centered at 0
     physicalCoordinates /= numpy.sqrt(Np)
@@ -68,10 +73,10 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
 
     self.diameters = None  # Do not precompute diameters
 
-    self.logger.debug('Feature class initialized')
-
   def _calculateSurfaceArea(self):
     self.logger.debug('Calculating Surface Area in Python')
+
+    self.maskArray = self.maskArray.astype('int')
 
     # define relative locations of the 8 voxels of a sampling cube
     gridAngles = numpy.array([(0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0),
@@ -79,10 +84,10 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     # instantiate lookup tables
     edgeTable, triTable = self._getMarchingTables()
 
-    minBounds = numpy.array([numpy.min(self.matrixCoordinates[0]), numpy.min(self.matrixCoordinates[1]),
-                             numpy.min(self.matrixCoordinates[2])])
-    maxBounds = numpy.array([numpy.max(self.matrixCoordinates[0]), numpy.max(self.matrixCoordinates[1]),
-                             numpy.max(self.matrixCoordinates[2])])
+    minBounds = numpy.array([numpy.min(self.maskCoordinates[0]), numpy.min(self.maskCoordinates[1]),
+                             numpy.min(self.maskCoordinates[2])])
+    maxBounds = numpy.array([numpy.max(self.maskCoordinates[0]), numpy.max(self.maskCoordinates[1]),
+                             numpy.max(self.maskCoordinates[2])])
     minBounds = numpy.where(minBounds < 1, 1, minBounds)
     maxBounds = numpy.where(maxBounds > self.maskArray.shape, self.maskArray.shape, maxBounds)
 
@@ -158,9 +163,8 @@ class RadiomicsShape(base.RadiomicsFeaturesBase):
     3. Maximum 3D diameter
     """
     self.logger.debug('Calculating Maximum 3D diameter in C')
-    Ns = self.targetVoxelArray.size
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size)
+    Ns = len(self.maskCoordinates[0])
+    angles = imageoperations.generateAngles(self.size)
     return cShape.calculate_diameter(self.maskArray, self.pixelSpacing, angles, Ns)
 
   def getVolumeFeatureValue(self):

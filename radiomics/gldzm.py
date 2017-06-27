@@ -1,8 +1,7 @@
 import numpy
 import SimpleITK as sitk
 
-import radiomics
-from radiomics import base, imageoperations
+from radiomics import base, cMatrices, cMatsEnabled, imageoperations
 
 
 class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
@@ -82,7 +81,6 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
   def __init__(self, inputImage, inputMask, **kwargs):
     super(RadiomicsGLDZM, self).__init__(inputImage, inputMask, **kwargs)
 
-    self.coefficients = {}
     self.P_gldzm = None
 
     # Pad inputMask to prevent errors in the distancemap (voxels on the border are not considered to be on the edge of
@@ -92,7 +90,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
 
     # Only apply padding where the size is more than 1. Flip the direction of the matrix, as padding will be
     # applied on the image (x, y, z) and the matrix is (z, y, x)
-    padding = numpy.where(numpy.array(self.matrix.shape)[::-1] == 1, 0, 1)
+    padding = numpy.where(numpy.array(self.inputImage.GetSize()) == 1, 0, 1)
 
     try:
       cpif.SetPadLowerBound(padding)
@@ -105,19 +103,21 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     self.inputImage = cpif.Execute(self.inputImage)
     self.inputMask = cpif.Execute(self.inputMask)
 
-    # Reassign matrix
-    self.matrix = sitk.GetArrayFromImage(self.inputImage).astype('float')
-    # Reassign self.maskArray using the now-padded self.inputMask and make it binary
-    self.maskArray = (sitk.GetArrayFromImage(self.inputMask) == self.label).astype('int')
-    self.matrixCoordinates = numpy.where(self.maskArray != 0)
+    if self.voxelWise:
+      self._initVoxelWiseCalculation()
+      self._applyBinning()
+      self.distMap = self._calculateDistanceMap()
+    else:
+      self._initLesionWiseCalculation()
+      self._applyBinning()
+      self.distMap = self._calculateDistanceMap()
+      self._initCalculation()
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['Np'] = self.targetVoxelArray.size
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    self.logger.debug('Feature class initialized')
 
-    if radiomics.cMatsEnabled:
+  def _initCalculation(self):
+    self.coefficients['Np'] = len(self.maskCoordinates[0])
+    if cMatsEnabled:
       self.P_gldzm = self._calculateCMatrix()
     else:
       self.P_gldzm = self._calculateMatrix()
@@ -129,7 +129,7 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     smdmif.InsideIsPositiveOn()
     distImage = smdmif.Execute(self.inputMask)
     distMap = sitk.GetArrayFromImage(distImage)
-    distMap, distHist = imageoperations.binImage(1, distMap, self.matrixCoordinates)
+    distMap, distHist = imageoperations.binImage(1, distMap, self.maskArray)
     return distMap
 
   def _calculateMatrix(self):
@@ -137,25 +137,22 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     Number of times a region with a gray level :math:`i` and occurs with a minimum distance :math:`j` in an image.
     P_gldzm[level, distance] = # occurrences.
     """
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
-    distMap = self._calculateDistanceMap()
-
     # Iterate over all gray levels in the image
-    grayLevels = numpy.unique(self.matrix[self.matrixCoordinates])
+    grayLevels = numpy.unique(self.matrix[self.maskArray])
 
     # Empty GLDZ matrix
-    P_gldzm = numpy.zeros((len(grayLevels), int(numpy.max(distMap))))
+    P_gldzm = numpy.zeros((len(grayLevels), int(numpy.max(self.distMap))))
 
     with self.progressReporter(grayLevels, desc='calculate GLDZM') as bar:
       for i_idx, i in enumerate(bar):
 
         ind = zip(*numpy.where(self.matrix == i))
-        ind = list(set(ind).intersection(set(zip(*self.matrixCoordinates))))
+        ind = list(set(ind).intersection(set(zip(*self.maskCoordinates))))
 
         while ind:  # check if ind is not empty: unprocessed regions for current gray level
           # Pop first coordinate of an unprocessed zone, start new stack
@@ -183,9 +180,9 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
             # Add all found neighbours to the total stack of unprocessed neighbours
             ind_region.extend(region_level)
 
-            if minDistance < 0 or distMap[ind_node] < minDistance:
+            if minDistance < 0 or self.distMap[ind_node] < minDistance:
               # minDistance is not set or new minimum is found
-              minDistance = distMap[ind_node]
+              minDistance = self.distMap[ind_node]
 
           # Update the gray level distance zone matrix, minDistance starts at 0 (voxels on the edge of the ROI.
           P_gldzm[i_idx, int(minDistance-1)] += 1
@@ -196,16 +193,14 @@ class RadiomicsGLDZM(base.RadiomicsFeaturesBase):
     Ng = self.coefficients['Ng']
     Np = self.coefficients['Np']
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
     # Do not pass kwargs directly, as distances may be specified, which must be forced to [1] for this class
-    angles = imageoperations.generateAngles(size,
+    angles = imageoperations.generateAngles(self.size,
                                             force2Dextraction=self.kwargs.get('force2D', False),
                                             force2Ddimension=self.kwargs.get('force2Ddimension', 0))
 
-    distMap = self._calculateDistanceMap()
-    Nd = int(numpy.max(distMap))
+    Nd = int(numpy.max(self.distMap))
 
-    P_gldzm = radiomics.cMatrices.calculate_gldzm(self.matrix, self.maskArray, distMap, angles, Ng, Nd, Np)
+    P_gldzm = cMatrices.calculate_gldzm(self.matrix, self.maskArray, self.distMap, angles, Ng, Nd, Np)
 
     # Delete rows that specify gray levels not present in the ROI
     Ng = self.coefficients['Ng']

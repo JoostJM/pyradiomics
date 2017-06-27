@@ -53,7 +53,7 @@ def getBinEdges(binwidth, parameterValues):
   return binEdges  # numpy.histogram(parameterValues, bins=binedges)
 
 
-def binImage(binwidth, parameterMatrix, parameterMatrixCoordinates):
+def binImage(binwidth, parameterMatrix, parameterMatrixMask):
   r"""
   Discretizes the parameterMatrix (matrix representation of the gray levels in the ROI) using the binEdges calculated
   using :py:func:`getBinEdges`. Only voxels defined by parameterMatrixCoordinates (defining the segmentation) are used
@@ -79,9 +79,9 @@ def binImage(binwidth, parameterMatrix, parameterMatrixCoordinates):
   global logger
   logger.debug('Discretizing gray levels inside ROI')
 
-  binEdges = getBinEdges(binwidth, parameterMatrix[parameterMatrixCoordinates])
+  binEdges = getBinEdges(binwidth, parameterMatrix[parameterMatrixMask])
 
-  parameterMatrix[parameterMatrixCoordinates] = numpy.digitize(parameterMatrix[parameterMatrixCoordinates], binEdges)
+  parameterMatrix[parameterMatrixMask] = numpy.digitize(parameterMatrix[parameterMatrixMask], binEdges)
 
   return parameterMatrix, binEdges
 
@@ -358,7 +358,7 @@ def _checkROI(imageNode, maskNode, label):
   return bb
 
 
-def cropToTumorMask(imageNode, maskNode, boundingBox):
+def cropToTumorMask(imageNode, maskNode, boundingBox, padDistance=0):
   """
   Create a sitkImage of the segmented region of the image based on the input label.
 
@@ -377,11 +377,15 @@ def cropToTumorMask(imageNode, maskNode, boundingBox):
   maskNode = sitk.Cast(maskNode, sitk.sitkInt32)
   size = numpy.array(maskNode.GetSize())
 
-  ijkMinBounds = boundingBox[0::2]
-  ijkMaxBounds = size - boundingBox[1::2] - 1
+  ijkMinBounds = boundingBox[0::2] - padDistance
+  ijkMaxBounds = size - boundingBox[1::2] - 1 - padDistance
+
+  # Prevent padding outside original image bounds
+  ijkMinBounds[ijkMinBounds < 0] = 0
+  ijkMaxBounds[ijkMaxBounds < 0] = 0
 
   # Crop Image
-  logger.debug('Cropping to size %s', (boundingBox[1::2] - boundingBox[0::2]) + 1)
+  logger.debug('Cropping to size %s', (size - ijkMinBounds - ijkMinBounds))
   cif = sitk.CropImageFilter()
   try:
     cif.SetLowerBoundaryCropSize(ijkMinBounds)

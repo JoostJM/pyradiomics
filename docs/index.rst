@@ -50,9 +50,9 @@ Currently supports the following feature classes:
 * :ref:`Gray Level Cooccurence Matrix <radiomics-glcm-label>` (GLCM)
 * :ref:`Gray Level Run Length Matrix <radiomics-glrlm-label>` (GLRLM)
 * :ref:`Gray Level Size Zone Matrix <radiomics-glszm-label>` (GLSZM)
-* :ref:`Neighbouring Gray Tone Difference Matrix <radiomics-ngtdm-label>>` (NGTDM)
-* :ref:`Gray Level Dependence Matrix <radiomics-gldm-label>>` (GLDM)
-* :ref:`Gray Level Distance Zone Matrix <radiomics-gldzm-label>>` (GLDZM)
+* :ref:`Neighbouring Gray Tone Difference Matrix <radiomics-ngtdm-label>` (NGTDM)
+* :ref:`Gray Level Dependence Matrix <radiomics-gldm-label>` (GLDM)
+* :ref:`Gray Level Distance Zone Matrix <radiomics-gldzm-label>` (GLDZM)
 
 
 On average, Pyradiomics extracts :math:`\approx 1300` features per image, which consist of the 16 shape descriptors and

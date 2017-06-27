@@ -102,22 +102,26 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     self.symmetricalGLCM = kwargs.get('symmetricalGLCM', True)
     self.weightingNorm = kwargs.get('weightingNorm', None)  # manhattan, euclidean, infinity
 
-    self.coefficients = {}
-    self.P_glcm = {}
+    self.P_glcm = None
 
-    # binning
-    self.matrix, self.binEdges = imageoperations.binImage(self.binWidth, self.matrix, self.matrixCoordinates)
-    self.coefficients['Ng'] = int(numpy.max(self.matrix[self.matrixCoordinates]))  # max gray level in the ROI
-    self.coefficients['grayLevels'] = numpy.unique(self.matrix[self.matrixCoordinates])
+    if self.voxelWise:
+      self._initVoxelWiseCalculation()
+      self._applyBinning()
+    else:
+      self._initLesionWiseCalculation()
+      self._applyBinning()
+      self._initCalculation()
+      self.logger.debug('Calculated GLCM with shape %s', self.P_glcm.shape)
 
+    self.logger.debug('Feature class initialized')
+
+  def _initCalculation(self):
     if cMatsEnabled():
       self.P_glcm = self._calculateCMatrix()
     else:
       self.P_glcm = self._calculateMatrix()
 
     self._calculateCoefficients()
-
-    self.logger.debug('Feature class initialized, calculated GLCM with shape %s', self.P_glcm.shape)
 
   def _calculateMatrix(self):
     r"""
@@ -131,11 +135,9 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     # Exclude voxels outside segmentation, due to binning, no negative values will be encountered inside the mask
     self.matrix[self.maskArray == 0] = -1
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size, **self.kwargs)
+    angles = imageoperations.generateAngles(self.size, **self.kwargs)
 
     grayLevels = self.coefficients['grayLevels']
-    grayLevel_idx = range(0, len(grayLevels))
 
     P_glcm = numpy.zeros((len(grayLevels), len(grayLevels), int(angles.shape[0])), dtype='float64')
 
@@ -169,8 +171,7 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
   def _calculateCMatrix(self):
     self.logger.debug('Calculating GLCM matrix in C')
 
-    size = numpy.max(self.matrixCoordinates, 1) - numpy.min(self.matrixCoordinates, 1) + 1
-    angles = imageoperations.generateAngles(size, **self.kwargs)
+    angles = imageoperations.generateAngles(self.size, **self.kwargs)
     Ng = self.coefficients['Ng']
 
     P_glcm = cMatrices.calculate_glcm(self.matrix, self.maskArray, angles, Ng)
@@ -246,9 +247,9 @@ class RadiomicsGLCM(base.RadiomicsFeaturesBase):
     Ng = self.coefficients['Ng']
     eps = numpy.spacing(1)
 
-    NgVector = self.coefficients['grayLevels']
+    NgVector = self.coefficients['grayLevels'].astype('float')
     # shape = (Ng, Ng)
-    i, j = numpy.meshgrid(NgVector, NgVector, indexing='ij')
+    i, j = numpy.meshgrid(NgVector, NgVector, indexing='ij', sparse=True)
 
     # shape = (2*Ng-1)
     kValuesSum = numpy.arange(2, (Ng * 2) + 1)

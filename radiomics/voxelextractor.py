@@ -14,16 +14,16 @@ import radiomics
 from radiomics import generalinfo, getFeatureClasses, getInputImageTypes, imageoperations
 
 
-class RadiomicsFeaturesExtractor:
+class RadiomicsVoxelExtractor:
   r"""
-  Wrapper class for calculation of a radiomics signature.
-  At and after initialisation various settings can be used to customize the resultant signature.
+  Wrapper class for voxel-wise calculation of radiomic features.
+  At and after initialisation various settings can be used to customize the resultant extraction.
   This includes which classes and features to use, as well as what should be done in terms of preprocessing the image
   and what images (original and/or filtered) should be used as input.
 
-  Then a call to :py:func:`execute` generates the radiomics
-  signature specified by these settings for the passed image and labelmap combination. This function can be called
-  repeatedly in a batch process to calculate the radiomics signature for all image and labelmap combinations.
+  Then a call to :py:func:`execute` calculates the radiomic features specified by these settings for the passed image
+  and labelmap combination. This function can be called repeatedly in a batch process to calculate the radiomic
+  features for all image and labelmap combinations.
 
   At initialization, a parameters file can be provided containing all necessary settings. This is done by passing the
   location of the file as the single argument in the initialization call, without specifying it as a keyword argument.
@@ -32,7 +32,7 @@ class RadiomicsFeaturesExtractor:
   and its value as the argument value (e.g. ``binWidth=25``). For mor information on possible settings and
   customization, see :ref:`Customizing the Extraction <radiomics-customization-label>`.
 
-  By default, all features in all feature classes are enabled.
+  By default, no features are enabled.
   By default, only `Original` input image is enabled (No filter applied).
   """
 
@@ -62,9 +62,8 @@ class RadiomicsFeaturesExtractor:
       self.inputImages = {'Original': {}}
 
       self.enabledFeatures = {}
-      for featureClassName in self.getFeatureClassNames():
-        self.enabledFeatures[featureClassName] = []
 
+    self.settings['voxelWise'] = True
     self._setTolerance()
 
   @classmethod
@@ -88,24 +87,14 @@ class RadiomicsFeaturesExtractor:
             'force2Ddimension': 0,
             'label': 1,
             'enableCExtensions': True,
-            'additionalInfo': True}
+            'kernelDistance': 1,
+            'maskedKernel': True}
 
   def _setTolerance(self):
     self.geometryTolerance = self.settings.get('geometryTolerance')
     if self.geometryTolerance is not None:
       sitk.ProcessObject.SetGlobalDefaultCoordinateTolerance(self.geometryTolerance)
       sitk.ProcessObject.SetGlobalDefaultDirectionTolerance(self.geometryTolerance)
-
-  def addProvenance(self, provenance_on=True):
-    """
-    Enable or disable reporting of additional information on the extraction. This information includes toolbox version,
-    enabled input images and applied settings. Furthermore, additional information on the image and region of interest
-    (ROI) is also provided, including original image spacing, total number of voxels in the ROI and total number of
-    fully connected volumes in the ROI.
-
-    To disable this, call ``addProvenance(False)``.
-    """
-    self.settings['additionalInfo'] = provenance_on
 
   def loadParams(self, paramsFile):
     """
@@ -125,6 +114,7 @@ class RadiomicsFeaturesExtractor:
     inputImages = params.get('inputImage', {})
     enabledFeatures = params.get('featureClass', {})
     settings = params.get('setting', {})
+    voxelSettings = params.get('voxelWise', {})
 
     self.logger.debug("Parameter file parsed. Applying settings")
 
@@ -137,8 +127,6 @@ class RadiomicsFeaturesExtractor:
 
     if len(enabledFeatures) == 0:
       self.enabledFeatures = {}
-      for featureClassName in self.getFeatureClassNames():
-        self.enabledFeatures[featureClassName] = []
     else:
       self.enabledFeatures = enabledFeatures
 
@@ -147,6 +135,7 @@ class RadiomicsFeaturesExtractor:
     # Set default settings and update with and changed settings contained in kwargs
     self.settings = self._getDefaultSettings()
     self.settings.update(settings)
+    self.settings.update(voxelSettings)  # Update with voxel-wise specific settings
 
     self.logger.debug("Settings: %s", settings)
 
@@ -217,12 +206,8 @@ class RadiomicsFeaturesExtractor:
   def enableInputImages(self, **inputImages):
     """
     Enable input images, with optionally custom settings, which are applied to the respective input image.
-    Settings specified here override those in kwargs.
-    The following settings are not customizable:
-
-    - interpolator
-    - resampledPixelSpacing
-    - padDistance
+    Settings specified here override those in kwargs. This only applies to settings that operate on the filter level or
+    feature class level.
 
     Updates current settings: If necessary, enables input image. Always overrides custom settings specified
     for input images passed in inputImages.
@@ -241,7 +226,7 @@ class RadiomicsFeaturesExtractor:
     Enable all classes and all features.
     """
     self.logger.debug('Enabling all features in all feature classes')
-    for featureClassName in self.getFeatureClassNames():
+    for featureClassName in self.featureClasses.keys():
       self.enabledFeatures[featureClassName] = []
     self.logger.debug('Enabled features: %s', self.enabledFeatures)
 
@@ -256,7 +241,7 @@ class RadiomicsFeaturesExtractor:
     """
     Enable or disable all features in given class.
     """
-    if featureClass not in self.getFeatureClassNames():
+    if featureClass not in self.featureClasses.keys():
       self.logger.warning('Feature class %s is not recognized', featureClass)
       return
 
@@ -288,11 +273,10 @@ class RadiomicsFeaturesExtractor:
     1. Image and mask are loaded and normalized/resampled if necessary.
     2. Validity of ROI is checked using :py:func:`~imageoperations.checkMask`, which also computes and returns the
        bounding box.
-    3. If enabled, provenance information is calculated and stored as part of the result.
-    4. Shape features are calculated on a cropped (no padding) version of the original image.
-    5. Other enabled featureclasses are calculated using all specified input image types in ``inputImages``. Images are
+    3. Other enabled featureclasses are calculated using all specified input image types in ``inputImages``. Images are
        cropped to tumor mask (no padding) after application of any filter and before being passed to the feature class.
-    6. The calculated features is returned as ``collections.OrderedDict``.
+    4. The calculated features is returned as ``collections.OrderedDict``, with feature name as key and a Simple ITK
+       image object as the value.
 
     :param imageFilepath: SimpleITK Image, or string pointing to image file location
     :param maskFilepath: SimpleITK Image, or string pointing to labelmap file location
@@ -335,29 +319,13 @@ class RadiomicsFeaturesExtractor:
 
     self.logger.debug('Image and Mask loaded and valid, starting extraction')
 
-    # 3. Add the additional information if enabled
-    if self.settings['additionalInfo']:
-      featureVector.update(self.getProvenance(imageFilepath, maskFilepath, mask))
+    # If maskedKernel is false, the crop function should include extra padding to handle the edge voxels correctly
+    if not self.settings.get('maskedKernel', False):
+      padDistance = self.settings.get('kernelDistance', 1)
+    else:
+      padDistance = 0
 
-    # 4. If shape descriptors should be calculated, handle it separately here
-    if 'shape' in self.enabledFeatures.keys():
-      croppedImage, croppedMask = imageoperations.cropToTumorMask(image, mask, boundingBox)
-      enabledFeatures = self.enabledFeatures['shape']
-
-      self.logger.info('Computing shape')
-      shapeClass = self.featureClasses['shape'](croppedImage, croppedMask, **self.settings)
-      if enabledFeatures is None or len(enabledFeatures) == 0:
-        shapeClass.enableAllFeatures()
-      else:
-        for feature in enabledFeatures:
-          shapeClass.enableFeatureByName(feature)
-
-      shapeClass.calculateFeatures()
-      for (featureName, featureValue) in six.iteritems(shapeClass.featureValues):
-        newFeatureName = 'original_shape_%s' % featureName
-        featureVector[newFeatureName] = featureValue
-
-    # 5. Calculate other enabled feature classes using enabled input image types
+    # 4. Calculate enabled feature classes using enabled input image types
     # Make generators for all enabled input image types
     self.logger.debug('Creating input image type iterator')
     imageGenerators = []
@@ -373,7 +341,7 @@ class RadiomicsFeaturesExtractor:
     # Calculate features for all (filtered) images in the generator
     for inputImage, inputImageName, inputKwargs in imageGenerators:
       self.logger.info('Calculating features for %s image', inputImageName)
-      inputImage, inputMask = imageoperations.cropToTumorMask(inputImage, mask, boundingBox)
+      inputImage, inputMask = imageoperations.cropToTumorMask(inputImage, mask, boundingBox, padDistance)
       featureVector.update(self.computeFeatures(inputImage, inputMask, inputImageName, **inputKwargs))
 
     self.logger.debug('Features extracted')
@@ -423,20 +391,6 @@ class RadiomicsFeaturesExtractor:
 
     return image, mask
 
-  def getProvenance(self, imageFilepath, maskFilepath, mask):
-    """
-    Generates provenance information for reproducibility. Takes the original image & mask filepath, as well as the
-    resampled mask which is passed to the feature classes. Returns a dictionary with keynames coded as
-    "general_info_<item>". For more information on generated items, see :ref:`generalinfo<radiomics-generalinfo-label>`
-    """
-    self.logger.info('Adding additional extraction information')
-
-    provenanceVector = collections.OrderedDict()
-    generalinfoClass = generalinfo.GeneralInfo(imageFilepath, maskFilepath, mask, self.settings, self.inputImages)
-    for k, v in six.iteritems(generalinfoClass.execute()):
-      provenanceVector['general_info_%s' % k] = v
-    return provenanceVector
-
   def computeFeatures(self, image, mask, inputImageName, **kwargs):
     """
     Compute signature using image, mask, \*\*kwargs settings.
@@ -447,18 +401,19 @@ class RadiomicsFeaturesExtractor:
 
     .. note::
 
-      shape descriptors are independent of gray level and therefore calculated separately (handeled in `execute`). In
-      this function, no shape functions are calculated.
+      shape descriptors are not available for voxel-wise extraction and therefore not calculated. If this class is
+      present in the enabled features, a warning is logged and shape features are skipped.
     """
     featureVector = collections.OrderedDict()
 
     # Calculate feature classes
     for featureClassName, enabledFeatures in six.iteritems(self.enabledFeatures):
-      # Handle calculation of shape features separately
+      # Handle calculation of shape features not supported in voxel-wise extraction
       if featureClassName == 'shape':
+        self.logger.warning('Shape features are not available for voxel-wise extraction')
         continue
 
-      if featureClassName in self.getFeatureClassNames():
+      if featureClassName in self.featureClasses.keys():
         self.logger.info('Computing %s', featureClassName)
 
         featureClass = self.featureClasses[featureClassName](image, mask, **kwargs)
@@ -469,21 +424,9 @@ class RadiomicsFeaturesExtractor:
           for feature in enabledFeatures:
             featureClass.enableFeatureByName(feature)
 
-        featureClass.calculateFeatures()
+        featureClass.calculateVoxels()
         for (featureName, featureValue) in six.iteritems(featureClass.featureValues):
           newFeatureName = '%s_%s_%s' % (inputImageName, featureClassName, featureName)
           featureVector[newFeatureName] = featureValue
 
     return featureVector
-
-  def getFeatureClassNames(self):
-    """
-    Returns a list of all possible feature classes.
-    """
-    return self.featureClasses.keys()
-
-  def getFeatureNames(self, featureClassName):
-    """
-    Returns a list of all possible features in provided featureClass
-    """
-    return self.featureClasses[featureClassName].getFeatureNames()
