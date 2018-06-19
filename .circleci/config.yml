@@ -55,3 +55,25 @@ jobs:
             jupyter nbconvert --ExecutePreprocessor.kernel_name=python2 --ExecutePreprocessor.timeout=-1 --to notebook --output-dir /tmp --execute notebooks/helloRadiomics.ipynb notebooks/helloFeatureClass.ipynb notebooks/PyRadiomicsExample.ipynb
 
             jupyter nbconvert --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=-1 --to notebook --output-dir /tmp --execute  notebooks/helloRadiomics.ipynb notebooks/helloFeatureClass.ipynb notebooks/PyRadiomicsExample.ipynb
+  deploy:
+    steps:
+      - run:
+          name: install twine
+          command: python -m pip install twine
+      - run:
+          name: deploy source and linux wheels
+          command: twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $env:PYPI_USER -p $env:PYPI_PASSWORD
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
+      - deploy:
+        requires:
+          - build
+        filters:
+          tags:
+            only:
+              - ^V?[0-9]+(\.[0-9]+)*(-rc[0-9]+)?$
+
