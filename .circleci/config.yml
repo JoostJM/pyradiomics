@@ -56,24 +56,53 @@ jobs:
 
             jupyter nbconvert --ExecutePreprocessor.kernel_name=python3 --ExecutePreprocessor.timeout=-1 --to notebook --output-dir /tmp --execute  notebooks/helloRadiomics.ipynb notebooks/helloFeatureClass.ipynb notebooks/PyRadiomicsExample.ipynb
   deploy:
+    working_directory: /pyradiomics
+    docker:
+      - image: jupyter/datascience-notebook
+        user: root
     steps:
+      - checkout
+      - run:
+          # CircleCI says we need SSH and the docker doesn't have it installed
+          name: Update
+          command: |
+            apt-get update
+            apt-get install -y openssh-client openssh-server
+      - run:
+          # Jupyter datascience notebook does not support python 2 anymore, install it manually.
+          # See also https://github.com/jupyter/docker-stacks/issues/432
+          # Next, install python 2 kernel globally, so it can be found from the root
+          name: Install Python 2 Kernel
+          command: |
+            conda create -n python2 python=2 ipykernel
+            pip install kernda --no-cache
+            $CONDA_DIR/envs/python2/bin/python -m ipykernel install
+            kernda -o -y /usr/local/share/jupyter/kernels/python2/kernel.json
+            pip uninstall kernda -y
+      - run:
+          name: Install pyradiomics in Python 2 and 3
+          command: |
+            source activate python2
+            python -m pip install --no-cache-dir -r requirements.txt
+            python -m pip install --no-cache-dir -r requirements-dev.txt
+            python setup.py install
+            source activate root
+            python -m pip install --no-cache-dir -r requirements.txt
+            python -m pip install --no-cache-dir -r requirements-dev.txt
+            python setup.py install
       - run:
           name: install twine
           command: python -m pip install twine
+      - run:
+          name: creat source and wheel distribution
+          command: python setup.py sdist bdist_wheel
       - run:
           name: deploy source and linux wheels
           command: twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $env:PYPI_USER -p $env:PYPI_PASSWORD
 
 workflows:
   version: 2
-  build-and-deploy:
+  build_and_deploy:
     jobs:
       - build
-      - deploy:
-        requires:
-          - build
-        filters:
-          tags:
-            only:
-              - ^V?[0-9]+(\.[0-9]+)*(-rc[0-9]+)?$
-
+      - deploy
