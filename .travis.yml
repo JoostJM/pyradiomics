@@ -41,8 +41,6 @@ script:
 after_success:
   - ci after_test
 
-before_deploy:
-  - pip install twine
 deploy:
   provider: script
   script: twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $PYPI_USER -p $PYPI_PASSWORD
