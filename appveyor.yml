@@ -1,7 +1,3 @@
-branches:
- only:
-  - master
-
 version: "0.0.1.{build}"
 
 environment:
@@ -44,14 +40,6 @@ after_test:
 
 on_finish:
   - ps: ../addons/appveyor/enable-worker-remote-access.ps1 -check_for_block
-
-deploy_script:
-  - name: release
-    ps: |
-          echo "deploying"
-          if ($env:APPVEYOR_REPO_TAG_NAME -notmatch '^V?\d(\.\d)*(-rc\d+)?$') { appveyor exit }
-          python -m pip install twine
-          twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $env:PYPI_USER -p $env:PYPI_PASSWORD
 
 matrix:
   fast_finish: false

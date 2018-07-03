@@ -68,6 +68,7 @@ jobs:
           command: |
             apt-get update
             apt-get install -y openssh-client openssh-server
+            apt-get install patchelf
       - run:
           # Jupyter datascience notebook does not support python 2 anymore, install it manually.
           # See also https://github.com/jupyter/docker-stacks/issues/432
@@ -91,18 +92,31 @@ jobs:
             python -m pip install --no-cache-dir -r requirements-dev.txt
             python setup.py install
       - run:
-          name: install twine
-          command: python -m pip install twine
+          name: install twine, auditwheel
+          command: |
+            python -m pip install auditwheel
+            python -m pip install twine
       - run:
           name: creat source and wheel distribution
-          command: python setup.py sdist bdist_wheel
+          command: |
+            python setup.py sdist bdist_wheel
+            # Since there are no external shared libraries to bundle into the wheels
+            # this step will fixup the wheel switching from 'linux' to 'manylinux1' tag
+            for whl in dist/*$(uname -p).whl; do
+              auditwheel repair $whl -w ./dist/
+              rm $whl
+            done
       - run:
           name: deploy source and linux wheels
-          command: twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $env:PYPI_USER -p $env:PYPI_PASSWORD
+          command: twine upload --repository-url https://test.pypi.org/legacy/ dist/* -u $PYPI_USER -p $PYPI_PASSWORD
 
 workflows:
   version: 2
   build_and_deploy:
     jobs:
       - build
-      - deploy
+      - deploy:
+          filters:
+            tags:
+              only:
+                - ^V?[0-9]+(\.[0-9]+)*(-rc[0-9]+)?$

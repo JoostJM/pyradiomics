@@ -1,9 +1,5 @@
 # Config file for automatic testing at travis-ci.org
 
-branches:
- only:
-  - master
-
 language: python
 
 matrix:
@@ -46,11 +42,9 @@ after_success:
   - ci after_test
 
 before_deploy:
-  - python -m pip install twine
-  - pattern="^V?\d(\.\d)*(-rc\d+)?$"
+  - pip install twine
 deploy:
   provider: script
   script: twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $PYPI_USER -p $PYPI_PASSWORD
   on:
     tags: true
-    condition: $TRAVIS_TAG =~ $pattern
