@@ -41,10 +41,12 @@ script:
 after_success:
   - ci after_test
 
+before_deploy:
+  - sudo pip install twine  # Twine installation requires sudo to get access to /usr/local/man
 deploy:
   provider: script
   skip_cleanup: true
-  script: .\\..\\addons\\appveyor\\run-with-visual-studio.cmd twine upload --repository-url https://test.pypi.org/legacy/ dist/*.whl -u $PYPI_USER% -p $PYPI_PASSWORD%
+  script: twine --help
   on:
     tags: true
     condition: $TRAVIS_TAG =~ ^v?[0-9]+(\.[0-9]+)*(-rc[0-9]+)?$
