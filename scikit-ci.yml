@@ -28,6 +28,7 @@ install:
   commands:
     - python --version
     - python -m pip install --disable-pip-version-check --upgrade pip
+    - $<RUN_ENV> pip install scikit-build
     - $<RUN_ENV> pip install wheel>=0.29.0
     - $<RUN_ENV> pip install setuptools>=38.6.0
     - $<RUN_ENV> pip install numpy>=1.9.2
