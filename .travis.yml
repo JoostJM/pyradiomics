@@ -24,7 +24,7 @@ matrix:
         - PYTHON_SHORT_VERSION=3.6
 
     - os: osx
-      osx_image: xcode10.2  # Python 3.7.2 running on macOS 10.14.3
+      #osx_image: xcode10.2  # Python 3.7.2 running on macOS 10.14.3
       language: generic
       env:
         - PYTHON_VERSION=3.7.2
@@ -64,6 +64,7 @@ deploy:
       tags: true
       condition: $TRAVIS_TAG =~ ^v?[0-9]+(\.[0-9]+)*(rc[0-9]+)?$ && $TRAVIS_REPO_SLUG == Radiomics/pyradiomics
   - provider: script
+    skip_cleanup: true
     script:
       wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
       bash miniconda.sh -b -p $HOME/miniconda;
@@ -71,7 +72,8 @@ deploy:
       export PATH=$HOME/miniconda/bin:$PATH;
       bash ./conda/configure_conda.sh;
       conda build ./conda --python=$PYTHON_SHORT_VERSION --croot $HOME/conda-bld;
-      anaconda -t $ANACONDA_TOKEN upload -u Radiomics $HOME/conda-bld/osx-64/pyradiomics-*.tar.bz2 --force
+      #anaconda -t $ANACONDA_TOKEN upload -u Radiomics $HOME/conda-bld/osx-64/pyradiomics-*.tar.bz2 --force
     on:
-      tags: true
-      condition: $TRAVIS_TAG =~ ^v?[0-9]+(\.[0-9]+)*(rc[0-9]+)?$ && $TRAVIS_REPO_SLUG == Radiomics/pyradiomics
+      branch: conda_tests
+      #tags: true
+      #condition: $TRAVIS_TAG =~ ^v?[0-9]+(\.[0-9]+)*(rc[0-9]+)?$ && $TRAVIS_REPO_SLUG == Radiomics/pyradiomics
