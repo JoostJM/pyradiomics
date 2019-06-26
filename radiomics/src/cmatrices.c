@@ -188,6 +188,8 @@ int calculate_glszm(int *image, char *mask, int *size, int *bb, int *strides, in
 
         // Increment region size, as number of loops corresponds to number of voxels in current region
         region++;
+        if (region < 0)  // Overflow of region size (INT_MAX)!
+          return -1;
 
         // Calculate the current index in each dimension. No checks with bb are needed, as k is either
         // equal to i (subject to bb checks) or to j (subject to bb checks)
@@ -278,10 +280,9 @@ int fill_glszm(int *tempData, double *glszm, int Ng, int maxRegion)
    */
   size_t i = 0;
   size_t glszm_idx, glszm_idx_max = Ng * maxRegion;  // Index and max index of the texture array
-
   while(tempData[i * 2] > -1)
   {
-    glszm_idx = (tempData[i * 2] - 1) * maxRegion + tempData[i * 2 + 1] - 1;
+    glszm_idx = ((size_t)tempData[i * 2] - 1) * maxRegion + (size_t)tempData[i * 2 + 1] - 1;
     if (glszm_idx >= glszm_idx_max) return 0; // Index out of range
 
     glszm[glszm_idx]++;
