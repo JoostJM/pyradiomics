@@ -6,31 +6,36 @@ matrix:
   include:
 
     - os: osx
-      language: generic
+      language: python
+      python: '3.5'
       env:
         - PYTHON_VERSION=3.5
         - PYTHON_SHORT_VERSION=3.5
 
     - os: osx
-      language: generic
+      language: python
+      python: '3.6'
       env:
         - PYTHON_VERSION=3.6
         - PYTHON_SHORT_VERSION=3.6
 
     - os: osx
-      language: generic
+      language: python
+      python: '3.7'
       env:
         - PYTHON_VERSION=3.7
         - PYTHON_SHORT_VERSION=3.7
 
     - os: osx
-      language: generic
+      language: python
+      python: '3.8'
       env:
         - PYTHON_VERSION=3.8
         - PYTHON_SHORT_VERSI8ON=3.8
 
     - os: osx
-      language: generic
+      language: python
+      python: '3.9'
       env:
         - PYTHON_VERSION=3.9
         - PYTHON_SHORT_VERSION=3.9
@@ -61,9 +66,8 @@ before_install:
   #     Reason: Incompatible library version: python requires version 11.0.0 or later, but libintl.8.dylib provides version 10.0.0
   # See https://github.com/scikit-build/cmake-python-distributions/issues/112 and
   # https://github.com/scikit-build/cmake-python-distributions/pull/113
-  - brew update
   - brew install gettext
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mkdir $HOME/bin; ln -s $(which pip2) $HOME/bin/pip; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mkdir $HOME/bin; ln -s $(which pip3) $HOME/bin/pip; fi
   - pip install scikit-ci scikit-ci-addons
   - ci_addons --install ../addons
 
