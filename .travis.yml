@@ -1,44 +1,8 @@
 # Config file for automatic testing at travis-ci.org
 
-language: python
-
-matrix:
-  include:
-
-    - os: osx
-      language: python
-      python: '3.5'
-      env:
-        - PYTHON_VERSION=3.5
-        - PYTHON_SHORT_VERSION=3.5
-
-    - os: osx
-      language: python
-      python: '3.6'
-      env:
-        - PYTHON_VERSION=3.6
-        - PYTHON_SHORT_VERSION=3.6
-
-    - os: osx
-      language: python
-      python: '3.7'
-      env:
-        - PYTHON_VERSION=3.7
-        - PYTHON_SHORT_VERSION=3.7
-
-    - os: osx
-      language: python
-      python: '3.8'
-      env:
-        - PYTHON_VERSION=3.8
-        - PYTHON_SHORT_VERSI8ON=3.8
-
-    - os: osx
-      language: python
-      python: '3.9'
-      env:
-        - PYTHON_VERSION=3.9
-        - PYTHON_SHORT_VERSION=3.9
+language: generic
+python: 3.6
+os: osx
 
 before_cache:
   # Cleanup to avoid the cache to grow indefinitely as new package versions are released
