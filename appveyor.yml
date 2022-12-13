@@ -23,7 +23,7 @@ environment:
 
 init:
   - ps: $env:PATH=$env:PYTHON_DIR + ";" + $env:PYTHON_DIR + "\\Scripts;" + $env:PATH
-  - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+  # - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
   - ps: python -c "import sys;print(sys.version, sys.executable)"
   - python -m pip install scikit-ci scikit-ci-addons
   - python -m ci_addons --install ../addons
@@ -42,6 +42,16 @@ test_script:
 
 after_test:
   - ci after_test
+  - echo testing Anaconda deployment
+  - CALL C:\Miniconda3-x64\condabin\conda.bat activate
+  - ps: echo $env:PATH
+  #- ps: $env:PATH = "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\BIN\amd64;" + $env:PATH
+  - conda config --set always_yes yes --set changeps1 no --set anaconda_upload no
+  - conda config --add channels simpleitk --add channels conda-forge
+  - conda install conda-build
+  - conda install anaconda-client
+  - conda update -q conda
+  - conda build ./conda --python=%PYTHON_SHORT_VERSION% --croot C:/conda-bld
 
 artifacts:
   - path: dist/*
@@ -58,7 +68,7 @@ deploy_script:
   - ps: if ($env:APPVEYOR_REPO_TAG_NAME -match '^v?[0-9]+(\.[0-9]+)*$') { twine upload dist/*.whl -u $Env:PYPI_USER -p $Env:PYPI_PASSWORD }
   - ps: if ($env:APPVEYOR_REPO_TAG_NAME -match '^v?[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)$') { twine upload dist/*.whl -u $Env:PYPI_TEST_USER -p $Env:PYPI_TEST_PASSWORD -r testpypi }
   - echo starting Anaconda deployment
-  - SET PATH=C:\Miniconda-x64\Scripts;%PATH%
+  - CALL C:\Miniconda3-x64\condabin\conda.bat activate
   - conda config --set always_yes yes
   - ./conda/configure_conda.bat
   - conda build ./conda --python=%PYTHON_SHORT_VERSION% --croot C:/conda-bld
